@@ -908,6 +908,7 @@
   <script>
     // ==================== 数据存储 ====================
     const STORAGE_KEY = 'botc_data';
+    const GITHUB_DATA_URL = 'https://raw.githubusercontent.com/swinburne-1/blood-moon-records/main/data.json';
     
     const DEFAULT_DATA = {
       scripts: [],
@@ -917,12 +918,31 @@
       nicknameMap: {}
     };
 
-    let appData = loadData();
+    let appData = null; // 初始为空，加载后填充
     let currentParsedData = null;
     let pendingDelete = null;
     let monthlyChart = null;
+    let dataLoaded = false;
 
-    function loadData() {
+    async function loadData() {
+      // 先尝试从 GitHub 加载默认数据
+      let defaultData = JSON.parse(JSON.stringify(DEFAULT_DATA));
+      
+      try {
+        const response = await fetch(GITHUB_DATA_URL);
+        if (response.ok) {
+          const githubData = await response.json();
+          if (githubData && (githubData.games || githubData.records)) {
+            // 转换 GitHub 数据格式
+            defaultData = convertGithubData(githubData);
+            console.log('从 GitHub 加载了默认数据');
+          }
+        }
+      } catch (e) {
+        console.log('从 GitHub 加载数据失败，使用空数据');
+      }
+      
+      // 再检查 localStorage
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         try {
@@ -930,12 +950,78 @@
           // 向后兼容：确保各字段存在
           if (!data.qqBindings) data.qqBindings = [];
           if (!data.nicknameMap) data.nicknameMap = {};
-          return data;
+          // 如果 localStorage 有数据，优先使用
+          appData = data;
+          dataLoaded = true;
+          return;
         } catch (e) {
           console.error('数据解析失败', e);
         }
       }
-      return JSON.parse(JSON.stringify(DEFAULT_DATA));
+      // 使用 GitHub 数据或默认空数据
+      appData = defaultData;
+      dataLoaded = true;
+      saveData();
+    }
+    
+    function convertGithubData(githubData) {
+      const defaultData = JSON.parse(JSON.stringify(DEFAULT_DATA));
+      
+      // 处理新的数据格式（包含 games 和 players）
+      if (githubData.games) {
+        defaultData.games = githubData.games.map(g => ({
+          id: g.id,
+          date: g.date || g.created_at,
+          script: g.script || g.scenario_name,
+          players: g.players || [],
+          winner: g.winner,
+          notes: g.notes || ''
+        }));
+      }
+      
+      // 处理旧的数据格式（包含 records）
+      if (githubData.records) {
+        const playerMap = {};
+        githubData.records.forEach(r => {
+          if (r.player && !playerMap[r.player]) {
+            playerMap[r.player] = { name: r.player, games: 0 };
+          }
+        });
+        defaultData.players = Object.values(playerMap);
+        
+        // 按日期和场次分组
+        const gameMap = {};
+        githubData.records.forEach(r => {
+          const key = `${r.date}-${r.session}`;
+          if (!gameMap[key]) {
+            gameMap[key] = {
+              id: `game_${key}`,
+              date: r.date,
+              script: r.script || r.scenario,
+              players: [],
+              winner: r.winner
+            };
+          }
+          gameMap[key].players.push(r.player);
+        });
+        defaultData.games = Object.values(gameMap);
+      }
+      
+      // 收集所有剧本
+      if (githubData.scripts) {
+        defaultData.scripts = githubData.scripts;
+      }
+      
+      return defaultData;
+    }
+    
+    // 页面加载时异步初始化数据
+    async function initApp() {
+      await loadData();
+      // 初始化完成后执行原来的 onload 内容
+      if (typeof onPageLoad === 'function') {
+        onPageLoad();
+      }
     }
 
     function saveData() {
@@ -3206,8 +3292,10 @@
       });
     });
 
-    // 初始化
-    init();
+    // 初始化 - 等待数据加载完成后执行
+    initApp().then(() => {
+      init();
+    });
     
     // ==================== 日历选择器 ====================
     let calendarYear = new Date().getFullYear();
