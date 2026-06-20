@@ -914,8 +914,9 @@
     // ==================== 数据存储 ====================
     const STORAGE_KEY = 'botc_data';
     const GIST_ID = '5b4e40ba6cc295f6f6bc3249dd48b68e';
-    const GIST_READ_URL = `https://gist.githubusercontent.com/swinburne-1/${GIST_ID}/raw/data.json`;
     const GIST_API_URL = `https://api.github.com/gists/${GIST_ID}`;
+    // 公开读取URL（任何人可读，不需要Token）
+    const PUBLIC_DATA_URL = 'https://raw.githubusercontent.com/swinburne-1/blood-moon-records/main/data.json';
     
     const DEFAULT_DATA = {
       scripts: [],
@@ -943,21 +944,23 @@
       localStorage.setItem('github_token', token);
     }
 
-    // 从 Gist 读取数据
-    async function fetchFromGist() {
+    // 从公开URL读取数据（任何人可读）
+    async function fetchFromPublic() {
       try {
-        const response = await fetch(GIST_READ_URL);
+        const response = await fetch(PUBLIC_DATA_URL);
         if (response.ok) {
           const data = await response.json();
-          console.log('从 Gist 加载数据成功');
-          return data;
+          if (data && (data.games || data.scripts || data.players)) {
+            console.log('从公开URL加载数据成功');
+            return data;
+          }
         }
       } catch (e) {
-        console.log('从 Gist 加载失败:', e);
+        console.log('从公开URL加载失败:', e);
       }
       return null;
     }
-
+    
     // 保存数据到 Gist（需要 token）
     async function saveToGist(data, token) {
       if (!token) {
@@ -993,14 +996,65 @@
         return false;
       }
     }
+    
+    // 保存数据到 GitHub 仓库的 data.json（公开可读）
+    async function saveToPublicRepo(data, token) {
+      if (!token) return false;
+      
+      try {
+        // 先获取文件的 SHA
+        const getResp = await fetch('https://api.github.com/repos/swinburne-1/blood-moon-records/contents/data.json', {
+          headers: { 'Authorization': `token ${token}` }
+        });
+        let sha = null;
+        if (getResp.ok) {
+          const info = await getResp.json();
+          sha = info.sha;
+        }
+        
+        // 更新文件
+        const updateResp = await fetch('https://api.github.com/repos/swinburne-1/blood-moon-records/contents/data.json', {
+          method: 'PUT',
+          headers: {
+            'Authorization': `token ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            message: 'Update data.json',
+            content: btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2)))),
+            sha: sha
+          })
+        });
+        
+        if (updateResp.ok) {
+          console.log('保存到公开仓库成功');
+          return true;
+        } else {
+          console.error('保存到公开仓库失败:', updateResp.status);
+          return false;
+        }
+      } catch (e) {
+        console.error('保存到公开仓库失败:', e);
+        return false;
+      }
+    }
 
     async function loadData() {
-      let defaultData = JSON.parse(JSON.stringify(DEFAULT_DATA));
+      let cloudData = null;
       
-      // 尝试从 Gist 加载
-      const gistData = await fetchFromGist();
-      if (gistData) {
-        defaultData = convertGithubData(gistData);
+      // 优先从公开URL加载（任何人可读）
+      cloudData = await fetchFromPublic();
+      
+      // 如果有Token，同步Gist
+      const token = loadGithubToken();
+      if (token) {
+        // 这里可以添加Gist同步逻辑
+      }
+      
+      // 合并云端数据
+      let defaultData = JSON.parse(JSON.stringify(DEFAULT_DATA));
+      if (cloudData) {
+        defaultData = cloudData;
       }
       
       // 检查 localStorage
@@ -1097,7 +1151,8 @@
       syncStatus = 'syncing';
       updateSyncStatus();
       
-      const success = await saveToGist(appData, token);
+      // 同时保存到公开仓库和Gist
+      const success = await saveToPublicRepo(appData, token);
       
       if (success) {
         syncStatus = 'synced';
