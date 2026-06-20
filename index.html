@@ -1006,12 +1006,11 @@
       
       const content = JSON.stringify(data, null, 2);
       
-      // 方法1: 直接PATCH
       try {
         const resp = await fetch(GIST_API_URL, {
           method: 'PATCH',
           headers: {
-            'Authorization': 'Bearer ' + token,
+            'Authorization': 'token ' + token,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
@@ -1028,20 +1027,14 @@
           console.log('同步成功');
           return true;
         }
-        console.error('PATCH失败:', resp.status, await resp.text());
+        console.error('同步失败:', resp.status, await resp.text());
+        alert('同步失败: ' + resp.status);
+        return false;
       } catch (e) {
-        console.error('PATCH错误:', e);
+        console.error('同步错误:', e);
+        alert('同步错误: ' + e.message);
+        return false;
       }
-      
-      // 方法2: 用GitHub CLI代理
-      try {
-        const resp = await fetch('https://cli.github.com/', {
-          method: 'HEAD'
-        });
-        console.log('GitHub CLI可用');
-      } catch(e) {}
-      
-      return false;
     }
 
     async function loadData() {
