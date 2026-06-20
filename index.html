@@ -398,6 +398,7 @@
           💾 数据管理
         </button>
         <div class="flex-1"></div>
+        <div id="syncStatus" class="flex items-center px-2 text-sm"></div>
         <button onclick="showSettingsModal()" class="nav-tab px-4 py-2 rounded-lg font-medium transition-all text-sm">
           ⚙️ 云同步
         </button>
@@ -1070,6 +1071,7 @@
     }
     
     async function initApp() {
+      createSettingsModal();
       await loadData();
       if (typeof onPageLoad === 'function') {
         onPageLoad();
@@ -1139,10 +1141,9 @@
     function showSettingsModal() {
       const modal = document.getElementById('settingsModal');
       const tokenInput = document.getElementById('githubTokenInput');
-      if (modal) {
-        tokenInput.value = loadGithubToken();
-        modal.classList.remove('hidden');
-      }
+      if (!modal) return;
+      tokenInput.value = loadGithubToken();
+      modal.classList.remove('hidden');
     }
     
     // 保存 GitHub Token
@@ -3742,7 +3743,6 @@
       `;
       document.body.appendChild(modal);
     }
-    createSettingsModal();
   </script>
 </body>
 </html>
