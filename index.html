@@ -1,0 +1,3497 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>血染钟楼对局记录系统</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+    
+    :root {
+      --bg-primary: #0a0808;
+      --bg-secondary: #1a1212;
+      --bg-tertiary: #2a1f1f;
+      --text-primary: #e8e0e0;
+      --text-secondary: #a89090;
+      --accent-red: #b91c1c;
+      --accent-red-light: #dc2626;
+      --accent-gold: #b8860b;
+      --border-subtle: #3d2a2a;
+    }
+    
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: var(--accent-red) var(--bg-secondary);
+    }
+    
+    body {
+      font-family: 'Noto Sans SC', sans-serif;
+      background: linear-gradient(135deg, var(--bg-primary) 0%, #120a0a 50%, var(--bg-primary) 100%);
+      min-height: 100vh;
+      color: var(--text-primary);
+    }
+    
+    h1, h2, h3 {
+      font-family: 'Noto Serif SC', serif;
+    }
+    
+    .blood-border {
+      border: 1px solid var(--accent-red);
+      box-shadow: 0 0 15px rgba(185, 28, 28, 0.3), inset 0 0 15px rgba(185, 28, 28, 0.1);
+    }
+    
+    .blood-glow {
+      text-shadow: 0 0 10px rgba(220, 38, 38, 0.5);
+    }
+    
+    .tab-active {
+      background: linear-gradient(180deg, var(--accent-red) 0%, var(--accent-red-light) 100%);
+      color: white;
+      box-shadow: 0 4px 15px rgba(185, 28, 28, 0.4);
+    }
+    
+    .card {
+      background: linear-gradient(145deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+      border: 1px solid var(--border-subtle);
+      transition: all 0.3s ease;
+    }
+    
+    .card:hover {
+      border-color: var(--accent-red);
+      box-shadow: 0 4px 20px rgba(185, 28, 28, 0.2);
+      transform: translateY(-2px);
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent-red) 0%, var(--accent-red-light) 100%);
+      border: none;
+      color: white;
+      transition: all 0.3s ease;
+    }
+    
+    .btn-primary:hover {
+      box-shadow: 0 4px 20px rgba(220, 38, 38, 0.5);
+      transform: translateY(-1px);
+    }
+    
+    .btn-secondary {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-primary);
+      transition: all 0.3s ease;
+    }
+    
+    .btn-secondary:hover {
+      border-color: var(--accent-red);
+      background: var(--bg-secondary);
+    }
+    
+    input, select, textarea {
+      background-color: var(--bg-primary) !important;
+      border: 1px solid var(--border-subtle) !important;
+      color: var(--text-primary) !important;
+    }
+    
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--accent-red) !important;
+      box-shadow: 0 0 0 2px rgba(185, 28, 28, 0.3) !important;
+      outline: none !important;
+    }
+    
+    select option {
+      background-color: var(--bg-secondary);
+      color: var(--text-primary);
+    }
+    
+    .team-good { color: #60a5fa; }
+    .team-evil { color: #f87171; }
+    
+    .team-badge-good {
+      background: rgba(96, 165, 250, 0.15);
+      border: 1px solid rgba(96, 165, 250, 0.4);
+      color: #60a5fa;
+    }
+    
+    .team-badge-evil {
+      background: rgba(248, 113, 113, 0.15);
+      border: 1px solid rgba(248, 113, 113, 0.4);
+      color: #f87171;
+    }
+    
+    .modal-overlay {
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(4px);
+    }
+    
+    .player-row {
+      animation: fadeIn 0.3s ease;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .empty-state {
+      background: radial-gradient(ellipse at center, var(--bg-tertiary) 0%, var(--bg-primary) 70%);
+    }
+    
+    .script-card-img {
+      width: 60px;
+      height: 60px;
+      object-fit: cover;
+      border-radius: 8px;
+    }
+    
+    .nav-tab {
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .nav-tab::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 2px;
+      background: var(--accent-red);
+      transition: width 0.3s ease;
+    }
+    
+    .nav-tab:hover::after,
+    .nav-tab.active::after {
+      width: 80%;
+    }
+    
+    .character-select optgroup {
+      color: var(--accent-gold);
+      font-weight: bold;
+    }
+    
+    .scroll-container {
+      max-height: calc(100vh - 280px);
+      overflow-y: auto;
+    }
+    
+    .game-history-item {
+      background: linear-gradient(90deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+      border-left: 3px solid var(--accent-red);
+    }
+    
+    .stat-card {
+      background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+    }
+    
+    /* 日历弹窗样式 */
+    .date-picker-container {
+      position: relative;
+      display: inline-block;
+    }
+    
+    .date-picker-input {
+      cursor: pointer;
+      min-width: 140px;
+    }
+    
+    .date-picker-input::-webkit-calendar-picker-indicator {
+      filter: invert(0.7);
+      cursor: pointer;
+    }
+    
+    .calendar-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .calendar-dropdown {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      margin-top: 4px;
+      background: #1a1212;
+      border: 1px solid var(--accent-red);
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(185, 28, 28, 0.4), 0 0 20px rgba(0, 0, 0, 0.5);
+      z-index: 1001;
+      overflow: hidden;
+    }
+    
+    .calendar-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: linear-gradient(135deg, #2a1f1f 0%, #1a1212 100%);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    
+    .calendar-nav-btn {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-primary);
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+    
+    .calendar-nav-btn:hover {
+      background: var(--accent-red);
+      border-color: var(--accent-red);
+    }
+    
+    .calendar-title {
+      font-weight: bold;
+      font-size: 16px;
+      color: var(--text-primary);
+    }
+    
+    .calendar-body {
+      padding: 12px;
+    }
+    
+    .calendar-weekdays {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+      margin-bottom: 8px;
+    }
+    
+    .calendar-weekday {
+      text-align: center;
+      font-size: 12px;
+      color: #666;
+      padding: 4px;
+    }
+    
+    .calendar-days {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+    }
+    
+    .calendar-day {
+      aspect-ratio: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s ease;
+      border: 1px solid transparent;
+    }
+    
+    .calendar-day:hover {
+      background: var(--bg-tertiary);
+      border-color: var(--border-subtle);
+    }
+    
+    .calendar-day.other-month {
+      color: #555;
+    }
+    
+    .calendar-day.today {
+      border-color: var(--accent-gold);
+      color: var(--accent-gold);
+    }
+    
+    .calendar-day.selected {
+      background: var(--accent-red);
+      color: white;
+      border-color: var(--accent-red);
+      box-shadow: 0 2px 8px rgba(220, 38, 38, 0.4);
+    }
+    
+    .calendar-footer {
+      padding: 8px 12px 12px;
+      border-top: 1px solid var(--border-subtle);
+    }
+    
+    .calendar-mode-toggle {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .calendar-mode-btn {
+      flex: 1;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
+    }
+    
+    .calendar-mode-btn.active {
+      background: var(--accent-red);
+      border-color: var(--accent-red);
+      color: white;
+    }
+    
+    .calendar-close {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: transparent;
+      border: none;
+      color: #666;
+      font-size: 20px;
+      cursor: pointer;
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+    }
+    
+    .calendar-close:hover {
+      color: var(--accent-red);
+      background: rgba(185, 28, 28, 0.2);
+    }
+  </style>
+</head>
+<body class="text-gray-200">
+  <!-- Header -->
+  <header class="sticky top-0 z-40 bg-gradient-to-b from-black/90 to-transparent py-4 px-6">
+    <div class="max-w-7xl mx-auto">
+      <h1 class="text-2xl md:text-3xl font-bold text-center blood-glow" style="color: var(--accent-red-light);">
+        🩸 血染钟楼对局记录系统
+      </h1>
+    </div>
+  </header>
+
+  <!-- Navigation Tabs -->
+  <nav class="sticky top-16 z-30 bg-black/80 backdrop-blur-md border-b border-gray-800/50">
+    <div class="max-w-7xl mx-auto px-4">
+      <div class="flex gap-1 overflow-x-auto py-2">
+        <button class="nav-tab active px-4 py-2 rounded-lg font-medium transition-all" data-tab="games">
+          📝 对局记录
+        </button>
+        <button class="nav-tab px-4 py-2 rounded-lg font-medium transition-all" data-tab="stats">
+          📊 数据统计
+        </button>
+        <button class="nav-tab px-4 py-2 rounded-lg font-medium transition-all" data-tab="scripts">
+          📖 剧本管理
+        </button>
+        <button class="nav-tab px-4 py-2 rounded-lg font-medium transition-all" data-tab="data">
+          💾 数据管理
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="max-w-7xl mx-auto px-4 py-6">
+    
+    <!-- Tab: 对局记录 -->
+    <section id="tab-games" class="tab-content">
+      <div class="grid lg:grid-cols-2 gap-6 mb-8">
+        <!-- 文字快捷录入 -->
+        <div class="card rounded-xl p-5">
+          <h2 class="text-lg font-bold mb-4 flex items-center gap-2">
+            <span class="w-2 h-6 rounded bg-red-600"></span>
+            文字快捷录入
+          </h2>
+          <textarea id="quickInput" rows="6" class="w-full rounded-lg p-3 text-sm" placeholder="示例：2026年5月20日 暗流涌动 闻人说书人 CC小恶魔 马力多多间谍 泡泡士兵"></textarea>
+          <div class="flex gap-3 mt-3">
+            <button onclick="parseQuickInput()" class="btn-primary px-5 py-2 rounded-lg font-medium">
+              解析并录入
+            </button>
+            <button onclick="clearQuickInput()" class="btn-secondary px-5 py-2 rounded-lg">
+              清空
+            </button>
+          </div>
+          <!-- 解析预览 -->
+          <div id="parsePreview" class="mt-4 p-4 rounded-lg bg-black/30 hidden">
+            <h3 class="font-bold mb-2 text-red-400">解析预览</h3>
+            <div id="parseResult" class="text-sm space-y-1"></div>
+            <button onclick="confirmParse()" class="btn-primary px-5 py-2 rounded-lg mt-3">
+              确认录入
+            </button>
+          </div>
+        </div>
+
+        <!-- 编号绑定录入 -->
+        <div class="card rounded-xl p-5">
+          <h2 class="text-lg font-bold mb-4 flex items-center gap-2">
+            <span class="w-2 h-6 rounded bg-green-600"></span>
+            编号绑定录入
+          </h2>
+          
+          <!-- 昵称库管理 -->
+          <div class="mb-4 p-3 rounded-lg bg-black/20">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="text-sm text-gray-400">昵称库</span>
+              <span id="nicknameCount" class="text-xs text-gray-500"></span>
+              <button onclick="showNicknameManager()" class="text-xs text-blue-400 hover:text-blue-300 ml-auto">管理</button>
+            </div>
+            <div class="flex gap-2">
+              <input type="file" id="nicknameFile" accept=".txt" class="text-sm text-gray-300 file:mr-2">
+              <button onclick="importNicknameFile()" class="btn-secondary px-3 py-1 rounded text-sm">导入</button>
+            </div>
+          </div>
+          
+          <textarea id="bindInput" rows="4" class="w-full rounded-lg p-3 text-sm" placeholder="粘贴玩家列表，例如：
+1. 玩家名 (1809278520)
+2. 玩家名2 (834423079)
+..."></textarea>
+          <textarea id="roleInput" rows="4" class="w-full rounded-lg p-3 text-sm mt-2" placeholder="粘贴角色列表，例如：
+1、村夫 2、渔夫 3、利维坦 4、厨师"></textarea>
+          <div class="flex gap-3 mt-3">
+            <button onclick="parseBindInput()" class="btn-primary px-5 py-2 rounded-lg font-medium">
+              解析绑定
+            </button>
+            <button onclick="clearBindInput()" class="btn-secondary px-5 py-2 rounded-lg">
+              清空
+            </button>
+          </div>
+          <!-- 绑定预览 -->
+          <div id="bindPreview" class="mt-4 p-4 rounded-lg bg-black/30 hidden">
+            <h3 class="font-bold mb-2 text-green-400">绑定预览</h3>
+            <div id="bindResult" class="text-sm space-y-1"></div>
+          </div>
+        </div>
+
+        <!-- 表单录入 -->
+        <div class="card rounded-xl p-5">
+          <h2 class="text-lg font-bold mb-4 flex items-center gap-2">
+            <span class="w-2 h-6 rounded bg-red-600"></span>
+            手动录入
+          </h2>
+          <div class="grid grid-cols-2 gap-4 mb-4">
+            <div>
+              <label class="block text-sm text-gray-400 mb-1">日期</label>
+              <input type="date" id="gameDate" class="w-full rounded-lg p-2">
+            </div>
+            <div>
+              <label class="block text-sm text-gray-400 mb-1">剧本</label>
+              <select id="gameScript" class="w-full rounded-lg p-2">
+                <option value="">选择剧本</option>
+              </select>
+            </div>
+          </div>
+          <div class="mb-4">
+            <label class="block text-sm text-gray-400 mb-1">说书人</label>
+            <input type="text" id="storyteller" list="playerList" class="w-full rounded-lg p-2" placeholder="输入或选择说书人">
+            <datalist id="playerList"></datalist>
+          </div>
+          
+          <!-- 玩家列表 -->
+          <div class="mb-4">
+            <div class="flex justify-between items-center mb-2">
+              <label class="text-sm text-gray-400">玩家列表</label>
+              <div class="flex gap-2">
+                <button onclick="addPlayerRow()" class="btn-secondary px-3 py-1 rounded text-sm">
+                  + 添加玩家
+                </button>
+                <select id="quickAddScript" class="text-sm rounded p-1" onchange="quickAddAllPlayers()">
+                  <option value="">快捷添加角色</option>
+                </select>
+              </div>
+            </div>
+            <div id="playerRows" class="space-y-2 max-h-64 overflow-y-auto"></div>
+          </div>
+
+          <!-- 对局结果 -->
+          <div class="mb-4">
+            <label class="block text-sm text-gray-400 mb-1">对局结果</label>
+            <select id="gameResult" class="w-full rounded-lg p-2">
+              <option value="">选择结果</option>
+              <option value="good_win">善良获胜</option>
+              <option value="evil_win">邪恶获胜</option>
+              <option value="player_lose">玩家落败</option>
+              <option value="st_lose">说书人落败</option>
+            </select>
+          </div>
+
+          <!-- 失败的上帝 -->
+          <div class="mb-4">
+            <label class="block text-sm text-gray-400 mb-1">失败的上帝</label>
+            <input type="number" id="failedGod" class="w-full rounded-lg p-2" value="0" min="0" step="1">
+          </div>
+
+          <div class="flex gap-3">
+            <button id="saveGameBtn" onclick="saveGame()" class="btn-primary flex-1 py-3 rounded-lg font-bold text-lg">
+              保存对局记录
+            </button>
+            <button id="cancelEditBtn" onclick="cancelEdit()" class="btn-secondary px-5 py-3 rounded-lg font-bold hidden">
+              取消编辑
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 对局历史 -->
+      <div class="card rounded-xl p-5">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-lg font-bold flex items-center gap-2">
+            <span class="w-2 h-6 rounded bg-red-600"></span>
+            对局历史
+          </h2>
+          <div class="flex gap-3">
+            <select id="filterScript" class="rounded-lg p-2 text-sm" onchange="filterGames()">
+              <option value="">全部剧本</option>
+            </select>
+            <!-- 新日期筛选器 -->
+            <div class="date-picker-container">
+              <input type="text" id="filterDate" class="date-picker-input rounded-lg p-2 text-sm" 
+                     placeholder="选择日期" readonly onclick="toggleCalendar(event)"
+                     autocomplete="off">
+              <div id="calendarDropdown" class="calendar-dropdown hidden" style="width: 320px;">
+                <div class="calendar-header">
+                  <button class="calendar-nav-btn" onclick="prevMonth()">&#8249;</button>
+                  <span id="calendarTitle" class="calendar-title"></span>
+                  <button class="calendar-nav-btn" onclick="nextMonth()">&#8250;</button>
+                </div>
+                <div class="calendar-body">
+                  <div class="calendar-weekdays">
+                    <div class="calendar-weekday">日</div>
+                    <div class="calendar-weekday">一</div>
+                    <div class="calendar-weekday">二</div>
+                    <div class="calendar-weekday">三</div>
+                    <div class="calendar-weekday">四</div>
+                    <div class="calendar-weekday">五</div>
+                    <div class="calendar-weekday">六</div>
+                  </div>
+                  <div id="calendarDays" class="calendar-days"></div>
+                </div>
+                <div class="calendar-footer">
+                  <div class="calendar-mode-toggle">
+                    <button id="modeSingle" class="calendar-mode-btn active" onclick="setCalendarMode('single')">单日模式</button>
+                    <button id="modeMonth" class="calendar-mode-btn" onclick="setCalendarMode('month')">整月模式</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <button id="clearDateBtn" class="btn-secondary px-3 py-2 rounded-lg text-sm hidden" onclick="clearDateFilter()">清除</button>
+          </div>
+        </div>
+        <div id="gameHistory" class="space-y-2 scroll-container">
+          <!-- 动态填充 -->
+        </div>
+      </div>
+    </section>
+
+    <!-- Tab: 数据统计 -->
+    <section id="tab-stats" class="tab-content hidden">
+      <!-- 胜负总览 -->
+      <div class="card rounded-xl p-5 mb-6">
+        <h2 class="text-lg font-bold mb-4 flex items-center gap-2">
+          <span class="w-2 h-6 rounded bg-red-600"></span>
+          胜负总览
+        </h2>
+        <div id="resultStats" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
+        <div id="resultBar" class="mt-4 h-6 rounded-full overflow-hidden bg-black/30 flex"></div>
+      </div>
+
+      <!-- 玩家查询 -->
+      <div class="card rounded-xl p-5 mb-6">
+        <h2 class="text-lg font-bold mb-4 flex items-center gap-2">
+          <span class="w-2 h-6 rounded bg-red-600"></span>
+          玩家数据查询
+        </h2>
+        <div class="flex gap-3 mb-4">
+          <input type="text" id="searchPlayer" list="searchPlayerList" class="flex-1 rounded-lg p-2" placeholder="输入玩家名称">
+          <datalist id="searchPlayerList"></datalist>
+          <button onclick="searchPlayerStats()" class="btn-primary px-5 py-2 rounded-lg">
+            查询
+          </button>
+        </div>
+        <div id="playerStats" class="hidden">
+          <div class="grid md:grid-cols-4 gap-4 mb-4">
+            <div class="stat-card rounded-lg p-4 text-center blood-border">
+              <div class="text-3xl font-bold text-red-400" id="statTotalGames">0</div>
+              <div class="text-sm text-gray-400">游玩场次</div>
+            </div>
+            <div class="stat-card rounded-lg p-4 text-center blood-border">
+              <div class="text-3xl font-bold text-blue-400" id="statGoodGames">0</div>
+              <div class="text-sm text-gray-400">善良阵营</div>
+            </div>
+            <div class="stat-card rounded-lg p-4 text-center blood-border">
+              <div class="text-3xl font-bold text-red-400" id="statEvilGames">0</div>
+              <div class="text-sm text-gray-400">邪恶阵营</div>
+            </div>
+            <div class="stat-card rounded-lg p-4 text-center blood-border">
+              <div class="text-3xl font-bold text-purple-400" id="statFactionChange">0</div>
+              <div class="text-sm text-gray-400">有转变局数</div>
+            </div>
+            <div class="stat-card rounded-lg p-4 text-center blood-border">
+              <div class="text-3xl font-bold text-yellow-400" id="statSTGames">0</div>
+              <div class="text-sm text-gray-400">说书次数</div>
+            </div>
+            <div class="stat-card rounded-lg p-4 text-center blood-border">
+              <div class="text-3xl font-bold" id="statFailedGod">0</div>
+              <div class="text-sm flex items-center justify-center" style="text-shadow: 0 0 10px rgba(220,38,38,0.5); color: #dc2626; line-height: 1.25;">👍</div>
+            </div>
+            <div class="stat-card rounded-lg p-4 text-center blood-border bg-orange-900/20">
+              <div class="text-3xl font-bold text-orange-400" id="statRecentTwoWeeks">0</div>
+              <div class="text-sm text-gray-400">近两周</div>
+            </div>
+          </div>
+          
+          <!-- 角色统计 -->
+          <h3 class="font-bold mb-2 text-gray-300">角色统计</h3>
+          <div id="roleStats" class="grid md:grid-cols-3 gap-3 mb-4"></div>
+          
+          <!-- 阵营统计 -->
+          <h3 class="font-bold mb-2 text-gray-300">阵营统计</h3>
+          <div id="teamStats" class="flex gap-4"></div>
+        </div>
+      </div>
+
+      <!-- 队友统计 -->
+      <div class="card rounded-xl p-5 mb-6">
+        <h2 class="text-lg font-bold mb-4 flex items-center gap-2">
+          <span class="w-2 h-6 rounded bg-red-600"></span>
+          队友关系查询
+        </h2>
+        <div class="mb-4">
+          <label class="block text-sm text-gray-400 mb-2">选择玩家（输入添加，可多选）</label>
+          <div class="flex gap-2 mb-3">
+            <input type="text" id="teammateInput" list="teammateDataList" class="flex-1 rounded-lg p-2" placeholder="输入或选择玩家名称" onkeydown="if(event.key==='Enter'){event.preventDefault();addTeammate()}">
+            <datalist id="teammateDataList"></datalist>
+            <button onclick="addTeammate()" class="btn-primary px-4 py-2 rounded-lg">
+              添加
+            </button>
+          </div>
+          <div id="teammateTags" class="flex flex-wrap gap-2"></div>
+        </div>
+        <button onclick="searchTeammates()" class="btn-primary px-5 py-2 rounded-lg mb-4">
+          查询队友关系
+        </button>
+        <div id="teammateResults" class="space-y-2"></div>
+      </div>
+
+      <!-- 月度看板 -->
+      <div class="card rounded-xl p-5">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-lg font-bold flex items-center gap-2">
+            <span class="w-2 h-6 rounded bg-red-600"></span>
+            月度数据看板
+          </h2>
+          <select id="statsMonth" class="rounded-lg p-2 text-sm" onchange="renderMonthlyChart()">
+            <!-- 动态填充 -->
+          </select>
+        </div>
+        <div class="flex gap-2 mb-4">
+          <input type="text" id="chartPlayerInput" list="chartPlayerDataList" class="flex-1 rounded-lg p-2" placeholder="输入玩家名查看个人数据" onkeydown="if(event.key==='Enter'){event.preventDefault();renderMonthlyChart()}">
+          <datalist id="chartPlayerDataList"></datalist>
+          <button onclick="document.getElementById('chartPlayerInput').value='';renderMonthlyChart()" class="btn-secondary px-3 py-2 rounded-lg text-sm">
+            清空
+          </button>
+        </div>
+        <div id="monthlyChartTitle" class="text-sm text-gray-400 mb-2"></div>
+        <div id="monthlyChartArea" class="h-80">
+          <canvas id="monthlyChart"></canvas>
+        </div>
+        <!-- 玩家排行 -->
+        <div id="playerRankArea" class="hidden mt-4 pt-4 border-t border-gray-700/50">
+          <div class="flex gap-2 mb-3">
+            <button id="rankBtnHigh" onclick="switchRankMode('high')" class="btn-primary px-4 py-2 rounded-lg text-sm font-medium">
+              ≥10局玩家
+            </button>
+            <button id="rankBtnLow" onclick="switchRankMode('low')" class="btn-secondary px-4 py-2 rounded-lg text-sm font-medium">
+              ≤6局玩家
+            </button>
+          </div>
+          <div id="playerRankList" class="space-y-1 max-h-64 overflow-y-auto"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tab: 剧本管理 -->
+    <section id="tab-scripts" class="tab-content hidden">
+      <!-- 导入剧本 -->
+      <div class="card rounded-xl p-5 mb-6">
+        <h2 class="text-lg font-bold mb-4 flex items-center gap-2">
+          <span class="w-2 h-6 rounded bg-red-600"></span>
+          导入剧本JSON
+        </h2>
+        <input type="file" id="scriptJsonFile" accept=".json" class="hidden" onchange="handleScriptFileImport(event)">
+        <div class="border-2 border-dashed border-gray-600 rounded-lg p-6 text-center cursor-pointer hover:border-red-500 transition-colors" onclick="document.getElementById('scriptJsonFile').click()">
+          <svg class="mx-auto mb-2 w-10 h-10 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+          <p class="text-gray-400">点击上传剧本JSON文件</p>
+          <p class="text-gray-600 text-sm mt-1">支持 .json 格式</p>
+        </div>
+        <div id="scriptFileInfo" class="mt-3 hidden"></div>
+        <div class="flex gap-3 mt-3">
+          <button onclick="document.getElementById('scriptJsonFile').click()" class="btn-primary px-5 py-2 rounded-lg">
+            选择文件
+          </button>
+          <button onclick="loadSampleScript()" class="btn-secondary px-5 py-2 rounded-lg">
+            加载示例
+          </button>
+        </div>
+      </div>
+
+      <!-- 新增剧本 -->
+      <div class="card rounded-xl p-5 mb-6">
+        <h2 class="text-lg font-bold mb-4 flex items-center gap-2">
+          <span class="w-2 h-6 rounded bg-red-600"></span>
+          新增剧本 / 角色
+        </h2>
+        <div class="grid md:grid-cols-3 gap-4 mb-4">
+          <div>
+            <label class="block text-sm text-gray-400 mb-1">剧本名称</label>
+            <input type="text" id="newScriptName" class="w-full rounded-lg p-2" placeholder="剧本名称">
+          </div>
+          <div>
+            <label class="block text-sm text-gray-400 mb-1">作者</label>
+            <input type="text" id="newScriptAuthor" class="w-full rounded-lg p-2" placeholder="作者">
+          </div>
+          <div>
+            <label class="block text-sm text-gray-400 mb-1">Logo URL</label>
+            <input type="text" id="newScriptLogo" class="w-full rounded-lg p-2" placeholder="图片URL">
+          </div>
+        </div>
+        <button onclick="addNewScript()" class="btn-primary px-5 py-2 rounded-lg mb-4">
+          创建剧本
+        </button>
+        
+        <div id="newCharacterForm" class="hidden border-t border-gray-700 pt-4 mt-4">
+          <h3 class="font-bold mb-3">添加角色</h3>
+          <div class="grid md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm text-gray-400 mb-1">选择剧本</label>
+              <select id="charScriptSelect" class="w-full rounded-lg p-2"></select>
+            </div>
+            <div>
+              <label class="block text-sm text-gray-400 mb-1">角色名称</label>
+              <input type="text" id="newCharName" class="w-full rounded-lg p-2" placeholder="角色名称">
+            </div>
+            <div>
+              <label class="block text-sm text-gray-400 mb-1">阵营</label>
+              <select id="newCharTeam" class="w-full rounded-lg p-2">
+                <option value="townsfolk">镇民 (善良)</option>
+                <option value="outsider">外来者 (善良)</option>
+                <option value="minion">爪牙 (邪恶)</option>
+                <option value="demon">恶魔 (邪恶)</option>
+                <option value="fabled">传说 (善良)</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm text-gray-400 mb-1">能力描述</label>
+              <input type="text" id="newCharAbility" class="w-full rounded-lg p-2" placeholder="能力描述">
+            </div>
+          </div>
+          <button onclick="addNewCharacter()" class="btn-primary px-5 py-2 rounded-lg mt-4">
+            添加角色
+          </button>
+        </div>
+      </div>
+
+      <!-- 剧本列表 -->
+      <div class="card rounded-xl p-5">
+        <h2 class="text-lg font-bold mb-4 flex items-center gap-2">
+          <span class="w-2 h-6 rounded bg-red-600"></span>
+          剧本列表
+        </h2>
+        <div id="scriptList" class="grid md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+      </div>
+    </section>
+
+    <!-- Tab: 数据管理 -->
+    <section id="tab-data" class="tab-content hidden">
+      <div class="grid md:grid-cols-2 gap-6">
+        <!-- 导出 -->
+        <div class="card rounded-xl p-5">
+          <h2 class="text-lg font-bold mb-4 flex items-center gap-2">
+            <span class="w-2 h-6 rounded bg-red-600"></span>
+            导出数据
+          </h2>
+          <p class="text-gray-400 mb-4">将所有数据导出为JSON文件，便于备份和迁移</p>
+          <div class="bg-black/30 rounded-lg p-4 mb-4">
+            <div class="flex justify-between items-center mb-2">
+              <span class="text-sm text-gray-400">剧本数量</span>
+              <span id="exportScriptCount" class="font-bold">0</span>
+            </div>
+            <div class="flex justify-between items-center mb-2">
+              <span class="text-sm text-gray-400">玩家数量</span>
+              <span id="exportPlayerCount" class="font-bold">0</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-sm text-gray-400">对局记录</span>
+              <span id="exportGameCount" class="font-bold">0</span>
+            </div>
+          </div>
+          <button onclick="exportData()" class="btn-primary w-full py-3 rounded-lg font-bold">
+            导出JSON文件
+          </button>
+        </div>
+
+        <!-- 导入 -->
+        <div class="card rounded-xl p-5">
+          <h2 class="text-lg font-bold mb-4 flex items-center gap-2">
+            <span class="w-2 h-6 rounded bg-red-600"></span>
+            导入数据
+          </h2>
+          <p class="text-gray-400 mb-4">导入JSON文件恢复或合并数据</p>
+          <input type="file" id="importFile" accept=".json" class="hidden" onchange="handleImport(event)">
+          <button onclick="document.getElementById('importFile').click()" class="btn-secondary w-full py-3 rounded-lg font-bold">
+            选择JSON文件
+          </button>
+          <div id="importResult" class="mt-4 p-3 rounded-lg hidden"></div>
+        </div>
+
+        <!-- 清空 -->
+        <div class="card rounded-xl p-5 md:col-span-2">
+          <h2 class="text-lg font-bold mb-4 flex items-center gap-2">
+            <span class="w-2 h-6 rounded bg-red-600"></span>
+            数据维护
+          </h2>
+          <div class="bg-red-900/20 border border-red-800/50 rounded-lg p-4 mb-4">
+            <p class="text-red-300 text-sm">⚠️ 危险操作：清空数据将删除所有剧本、玩家和对局记录，且无法恢复！</p>
+          </div>
+          <button onclick="confirmClearData()" class="bg-red-900 hover:bg-red-800 text-white px-6 py-3 rounded-lg font-bold transition-all">
+            清空所有数据
+          </button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modal: 查看对局详情 -->
+  <div id="gameDetailModal" class="fixed inset-0 z-50 hidden modal-overlay flex items-center justify-center p-4">
+    <div class="bg-gradient-to-b from-gray-900 to-black rounded-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto blood-border">
+      <div class="p-6">
+        <div class="flex justify-between items-start mb-4">
+          <h2 class="text-xl font-bold" id="modalGameTitle">对局详情</h2>
+          <button onclick="closeModal('gameDetailModal')" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+        </div>
+        <div id="modalGameContent"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: 确认删除 -->
+  <div id="confirmModal" class="fixed inset-0 z-50 hidden modal-overlay flex items-center justify-center p-4">
+    <div class="bg-gradient-to-b from-gray-900 to-black rounded-xl max-w-md w-full blood-border">
+      <div class="p-6">
+        <h2 class="text-xl font-bold mb-4">确认删除</h2>
+        <p id="confirmMessage" class="text-gray-300 mb-6"></p>
+        <div class="flex gap-3 justify-end">
+          <button onclick="closeModal('confirmModal')" class="btn-secondary px-5 py-2 rounded-lg">
+            取消
+          </button>
+          <button onclick="executeDelete()" class="bg-red-600 hover:bg-red-500 text-white px-5 py-2 rounded-lg font-bold">
+            确认删除
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-lg bg-gray-900 text-white shadow-2xl transition-all duration-300 opacity-0 pointer-events-none z-50 blood-border"></div>
+
+  <script>
+    // ==================== 数据存储 ====================
+    const STORAGE_KEY = 'botc_data';
+    
+    const DEFAULT_DATA = {
+      scripts: [],
+      players: [],
+      games: [],
+      qqBindings: [],
+      nicknameMap: {}
+    };
+
+    let appData = loadData();
+    let currentParsedData = null;
+    let pendingDelete = null;
+    let monthlyChart = null;
+
+    function loadData() {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        try {
+          const data = JSON.parse(stored);
+          // 向后兼容：确保各字段存在
+          if (!data.qqBindings) data.qqBindings = [];
+          if (!data.nicknameMap) data.nicknameMap = {};
+          return data;
+        } catch (e) {
+          console.error('数据解析失败', e);
+        }
+      }
+      return JSON.parse(JSON.stringify(DEFAULT_DATA));
+    }
+
+    function saveData() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+    }
+
+    // ==================== 阵营映射 ====================
+    const TEAM_MAP = {
+      townsfolk: 'good',
+      outsider: 'good',
+      minion: 'evil',
+      demon: 'evil',
+      fabled: 'good'
+    };
+
+    const TEAM_NAMES = {
+      townsfolk: '镇民',
+      outsider: '外来者',
+      minion: '爪牙',
+      demon: '恶魔',
+      fabled: '传说'
+    };
+
+    function getTeamFromChar(charId) {
+      const script = appData.scripts.find(s => s.characters.some(c => c.id === charId));
+      if (script) {
+        const char = script.characters.find(c => c.id === charId);
+        if (char) return TEAM_MAP[char.team] || 'good';
+      }
+      return 'good';
+    }
+
+    const RESULT_LABELS = {
+      good_win: '善良获胜',
+      evil_win: '邪恶获胜',
+      player_lose: '玩家落败',
+      st_lose: '说书人落败'
+    };
+
+    function getResultLabel(result) {
+      return RESULT_LABELS[result] || result || '';
+    }
+
+    function getTeamDisplayName(team) {
+      return team === 'good' ? '善良' : '邪恶';
+    }
+
+    // 角色名→charId解析（统一存储格式为charId）
+    function resolveRoleNameToId(name) {
+      if (!name) return '';
+      for (const script of appData.scripts) {
+        const char = script.characters.find(c => c.name === name);
+        if (char) return char.id;
+      }
+      return name; // 找不到就原样返回（自定义角色名）
+    }
+
+    // charId→角色显示名
+    function getCharDisplayName(charId) {
+      if (!charId) return '';
+      if (charId === 'storyteller') return '说书人';
+      const char = getCharacterById(charId);
+      return char?.name || charId;
+    }
+
+    // 转变记录自动同步终局角色/阵营
+    function syncEndRole(index) {
+      const row = document.querySelector(`[data-index="${index}"]`);
+      if (!row) return;
+      const changes = row.querySelectorAll('.change-item');
+      if (changes.length > 0) {
+        const lastChange = changes[changes.length - 1];
+        const role = lastChange.querySelector('.change-role').value.trim();
+        const team = lastChange.querySelector('.change-team').value;
+        if (role) {
+          row.querySelector('.end-role').value = role;
+          row.querySelector('.end-team').value = team;
+          updateTeamColor(row.querySelector('.end-team'));
+        }
+      }
+    }
+    
+    // 更新阵营选择颜色
+    function updateTeamColor(select) {
+      if (!select) return;
+      select.style.color = select.value === 'good' ? '#60a5fa' : '#f87171';
+    }
+
+    // ==================== Tab 切换 ====================
+    document.querySelectorAll('.nav-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.nav-tab').forEach(t => {
+          t.classList.remove('active', 'tab-active');
+        });
+        tab.classList.add('active', 'tab-active');
+        
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+        const target = document.getElementById('tab-' + tab.dataset.tab);
+        if (target) target.classList.remove('hidden');
+        
+        if (tab.dataset.tab === 'stats') {
+          renderResultStats();
+          renderTeammateSelect();
+          renderMonthlyChart();
+        }
+        if (tab.dataset.tab === 'scripts') {
+          renderScriptList();
+        }
+        if (tab.dataset.tab === 'data') {
+          updateExportStats();
+        }
+      });
+    });
+
+    // ==================== 初始化 ====================
+    function init() {
+      document.getElementById('gameDate').valueAsDate = new Date();
+      updatePlayerList();
+      updateScriptSelects();
+      updateNicknameCount();
+      renderGameHistory();
+      
+      // 如果没有剧本，加载示例
+      if (appData.scripts.length === 0) {
+        loadSampleScript();
+      }
+    }
+
+    function updatePlayerList() {
+      const datalist = document.getElementById('playerList');
+      const searchDatalist = document.getElementById('searchPlayerList');
+      datalist.innerHTML = appData.players.map(p => `<option value="${p}">`).join('');
+      searchDatalist.innerHTML = appData.players.map(p => `<option value="${p}">`).join('');
+    }
+
+    function updateScriptSelects() {
+      const selects = ['gameScript', 'filterScript', 'charScriptSelect', 'quickAddScript'];
+      selects.forEach(id => {
+        const select = document.getElementById(id);
+        if (!select) return;
+        const currentVal = select.value;
+        select.innerHTML = '<option value="">选择剧本</option>' + 
+          appData.scripts.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+        select.value = currentVal;
+      });
+    }
+
+    // ==================== 玩家行管理 ====================
+    let playerRowIndex = 0;
+    let editingGameId = null; // 编辑模式：记录正在编辑的对局ID
+
+    function addPlayerRow(data = null) {
+      const container = document.getElementById('playerRows');
+      const index = playerRowIndex++;
+      
+      const html = `
+        <div class="player-row bg-black/30 rounded-lg p-3" data-index="${index}">
+          <div class="flex gap-2 items-start">
+            <input type="text" class="player-name w-28 rounded-lg p-2 text-sm flex-shrink-0" placeholder="玩家名" value="${data?.name || ''}">
+            <select class="player-role flex-1 rounded-lg p-2 text-sm" onchange="onRoleChange(${index})">
+              <option value="">选择角色</option>
+              ${getRoleOptions()}
+            </select>
+            <select class="start-team rounded p-1 text-xs flex-shrink-0" onchange="updateTeamColor(this)">
+              <option value="good" ${(data?.startTeam || 'good') === 'good' ? 'selected' : ''}>善良</option>
+              <option value="evil" ${data?.startTeam === 'evil' ? 'selected' : ''}>邪恶</option>
+            </select>
+            <button onclick="toggleChanges(${index})" class="btn-secondary px-2 py-1 rounded text-xs" title="添加转变记录">
+              变
+            </button>
+            <button onclick="removePlayerRow(${index})" class="text-red-500 hover:text-red-400 px-1" title="移除">
+              ✕
+            </button>
+          </div>
+          <div class="changes-container mt-2 hidden" id="changes-${index}">
+            <div class="text-xs text-gray-500 mb-1">角色/阵营转变记录</div>
+            <div class="changes-list space-y-1"></div>
+            <button onclick="addChange(${index})" class="text-xs text-red-400 hover:text-red-300 mt-1">+ 添加转变</button>
+          </div>
+          <div class="flex gap-4 mt-2 pt-2 border-t border-gray-700/50">
+            <div class="flex items-center gap-2 text-xs">
+              <span class="text-gray-500">终局:</span>
+              <input type="text" class="end-role w-20 rounded p-1 text-sm bg-transparent" placeholder="角色" value="${data?.endRole || ''}">
+              <select class="end-team rounded p-1 text-xs" onchange="updateTeamColor(this)">
+                <option value="good" ${(data?.endTeam || 'good') === 'good' ? 'selected' : ''}>善良</option>
+                <option value="evil" ${data?.endTeam === 'evil' ? 'selected' : ''}>邪恶</option>
+              </select>
+            </div>
+          </div>
+          <input type="hidden" class="original-start-role" value="${data?.startRole || ''}">
+        </div>
+      `;
+      container.insertAdjacentHTML('beforeend', html);
+      
+      // 初始化阵营选择颜色
+      const lastRow = container.lastElementChild;
+      updateTeamColor(lastRow.querySelector('.start-team'));
+      updateTeamColor(lastRow.querySelector('.end-team'));
+      
+      if (data) {
+        const row = container.lastElementChild;
+        row.querySelector('.player-name').value = data.name || '';
+        
+        // 设置角色下拉框
+        const roleSelect = row.querySelector('.player-role');
+        roleSelect.value = data.startRole || '';
+        
+        // 如果charId在下拉框中找不到匹配（不同剧本同名角色ID不一致），按角色名查找
+        if (data.startRole && !roleSelect.value) {
+          const charName = getCharDisplayName(data.startRole);
+          for (const opt of roleSelect.options) {
+            if (opt.textContent === charName) {
+              roleSelect.value = opt.value;
+              break;
+            }
+          }
+        }
+        
+        // 设置开始阵营（不调用onRoleChange，避免覆盖endRole/endTeam）
+        if (data.startRole) {
+          const team = data.startTeam || getTeamFromChar(data.startRole);
+          const startTeamSelect = row.querySelector('.start-team');
+          startTeamSelect.value = team;
+          updateTeamColor(startTeamSelect);
+        }
+        
+        // 恢复终局角色/阵营
+        if (data.endRole) row.querySelector('.end-role').value = data.endRole;
+        if (data.endTeam) {
+          const endTeamSelect = row.querySelector('.end-team');
+          endTeamSelect.value = data.endTeam;
+          updateTeamColor(endTeamSelect);
+        }
+        
+        // 处理转变记录
+        if (data.changes && data.changes.length > 0) {
+          row.querySelector('.changes-container').classList.remove('hidden');
+          const changesList = row.querySelector('.changes-list');
+          data.changes.forEach(change => {
+            addChange(index, {
+              role: getCharDisplayName(change.role),
+              team: change.team
+            });
+          });
+        }
+      }
+    }
+
+    function getRoleOptions() {
+      let options = '';
+      const teams = {
+        'townsfolk': '镇民 (善良)',
+        'outsider': '外来者 (善良)',
+        'minion': '爪牙 (邪恶)',
+        'demon': '恶魔 (邪恶)',
+        'fabled': '传说 (善良)'
+      };
+      
+      for (const [team, label] of Object.entries(teams)) {
+        const chars = getCharactersByTeam(team);
+        if (chars.length > 0) {
+          options += `<optgroup label="${label}">`;
+          chars.forEach(c => {
+            options += `<option value="${c.id}">${c.name}</option>`;
+          });
+          options += '</optgroup>';
+        }
+      }
+      return options;
+    }
+
+    function getCharactersByTeam(team) {
+      const chars = [];
+      const seenNames = new Set();
+      appData.scripts.forEach(script => {
+        script.characters.forEach(char => {
+          if (char.team === team && !seenNames.has(char.name)) {
+            seenNames.add(char.name);
+            chars.push(char);
+          }
+        });
+      });
+      return chars;
+    }
+
+    function onRoleChange(index) {
+      const row = document.querySelector(`[data-index="${index}"]`);
+      const roleSelect = row.querySelector('.player-role');
+      const startTeamSelect = row.querySelector('.start-team');
+      const selectedCharId = roleSelect.value;
+      
+      if (selectedCharId) {
+        const team = getTeamFromChar(selectedCharId);
+        startTeamSelect.value = team;
+        updateTeamColor(startTeamSelect);
+        
+        // 同步终局角色和阵营（初始角色=终局角色）
+        const endRole = row.querySelector('.end-role');
+        const endTeam = row.querySelector('.end-team');
+        endRole.value = getCharDisplayName(selectedCharId);
+        endTeam.value = team;
+        updateTeamColor(endTeam);
+      }
+    }
+
+    function toggleChanges(index) {
+      const container = document.getElementById(`changes-${index}`);
+      container.classList.toggle('hidden');
+    }
+
+    function addChange(index, data = null) {
+      const container = document.querySelector(`#changes-${index} .changes-list`);
+      const html = `
+        <div class="flex gap-2 items-center change-item">
+          <input type="text" class="change-role flex-1 rounded p-1 text-xs" placeholder="变为角色" value="${data?.role || ''}" oninput="syncEndRole(${index})">
+          <select class="change-team rounded p-1 text-xs" onchange="syncEndRole(${index}); updateTeamColor(this)">
+            <option value="good" ${(data?.team || 'good') === 'good' ? 'selected' : ''}>善良</option>
+            <option value="evil" ${data?.team === 'evil' ? 'selected' : ''}>邪恶</option>
+          </select>
+          <button onclick="this.parentElement.remove(); syncEndRole(${index})" class="text-red-500 hover:text-red-400 text-xs">✕</button>
+        </div>
+      `;
+      container.insertAdjacentHTML('beforeend', html);
+      syncEndRole(index);
+    }
+
+    function removePlayerRow(index) {
+      const row = document.querySelector(`[data-index="${index}"]`);
+      if (row) row.remove();
+    }
+
+    function quickAddAllPlayers() {
+      const scriptId = document.getElementById('quickAddScript').value;
+      if (!scriptId) return;
+      
+      const script = appData.scripts.find(s => s.id === scriptId);
+      if (!script) return;
+      
+      // 清空现有
+      document.getElementById('playerRows').innerHTML = '';
+      playerRowIndex = 0;
+      
+      // 添加所有角色
+      script.characters.forEach(char => {
+        addPlayerRow({
+          name: '',
+          startRole: char.id,
+          startTeam: TEAM_MAP[char.team] || 'good'
+        });
+        onRoleChange(playerRowIndex - 1);
+      });
+    }
+
+    // ==================== 保存对局 ====================
+    function saveGame() {
+      const date = document.getElementById('gameDate').value;
+      const scriptId = document.getElementById('gameScript').value;
+      const storyteller = document.getElementById('storyteller').value.trim();
+      
+      if (!date || !scriptId || !storyteller) {
+        showToast('请填写日期、剧本和说书人', 'error');
+        return;
+      }
+      
+      const playerRows = document.querySelectorAll('.player-row');
+      if (playerRows.length === 0) {
+        showToast('请添加至少一名玩家', 'error');
+        return;
+      }
+      
+      const players = [];
+      let playerNames = new Set();
+      
+      playerRows.forEach(row => {
+        const name = row.querySelector('.player-name').value.trim();
+        let startRole = row.querySelector('.player-role').value;
+        // 如果下拉框匹配不到（charId变了/剧本改了），用隐藏字段保存的原始charId兜底
+        if (!startRole) {
+          startRole = row.querySelector('.original-start-role').value || '';
+        }
+        const startTeam = row.querySelector('.start-team').value || 'good';
+        
+        if (!name) {
+          showToast('请填写所有玩家名称', 'error');
+          return;
+        }
+        
+        if (playerNames.has(name)) {
+          showToast(`玩家名重复: ${name}`, 'error');
+          return;
+        }
+        playerNames.add(name);
+        
+        const changes = [];
+        row.querySelectorAll('.change-item').forEach(item => {
+          const changeRoleText = item.querySelector('.change-role').value.trim();
+          changes.push({
+            role: resolveRoleNameToId(changeRoleText),
+            team: item.querySelector('.change-team').value
+          });
+        });
+        
+        // 如果有转变记录，终局角色/阵营以最后一条转变为准
+        const endRoleText = row.querySelector('.end-role').value.trim();
+        let endRole, endTeam;
+        if (changes.length > 0 && (!endRoleText || endRoleText === getCharDisplayName(startRole))) {
+          // 用户未手动修改endRole（仍为初始角色名），自动取最后一条转变
+          const lastChange = changes[changes.length - 1];
+          endRole = lastChange.role;
+          endTeam = lastChange.team;
+        } else {
+          endRole = resolveRoleNameToId(endRoleText) || startRole;
+          endTeam = row.querySelector('.end-team').value || startTeam;
+        }
+        
+        players.push({
+          name,
+          isStoryteller: false,
+          startRole,
+          startTeam,
+          changes,
+          endRole,
+          endTeam
+        });
+      });
+      
+      // 添加说书人（如果不在玩家列表中）
+      if (!playerNames.has(storyteller)) {
+        players.push({
+          name: storyteller,
+          isStoryteller: true,
+          startRole: 'storyteller',
+          startTeam: 'good',
+          changes: [],
+          endRole: 'storyteller',
+          endTeam: 'good'
+        });
+        // 添加到玩家列表
+        if (!appData.players.includes(storyteller)) {
+          appData.players.push(storyteller);
+        }
+      }
+      
+      // 添加其他玩家到列表
+      players.forEach(p => {
+        if (!p.isStoryteller && !appData.players.includes(p.name)) {
+          appData.players.push(p.name);
+        }
+      });
+      
+      const game = {
+        id: Date.now().toString(),
+        date,
+        scriptId,
+        storyteller,
+        result: document.getElementById('gameResult').value || '',
+        failedGod: parseInt(document.getElementById('failedGod').value) || 0,
+        players,
+        createdAt: new Date().toISOString()
+      };
+      
+      if (editingGameId) {
+        // 编辑模式：更新已有记录
+        const idx = appData.games.findIndex(g => g.id === editingGameId);
+        if (idx >= 0) {
+          game.id = editingGameId;
+          game.createdAt = appData.games[idx].createdAt;
+          appData.games[idx] = game;
+        }
+        editingGameId = null;
+        updateSaveButton();
+        showToast('对局记录已更新');
+      } else {
+        appData.games.unshift(game);
+        showToast('对局记录已保存');
+      }
+      saveData();
+      
+      clearGameForm();
+      renderGameHistory();
+      updatePlayerList();
+    }
+
+    function clearGameForm() {
+      document.getElementById('gameDate').valueAsDate = new Date();
+      document.getElementById('storyteller').value = '';
+      document.getElementById('gameResult').value = '';
+      document.getElementById('failedGod').value = '0';
+      document.getElementById('playerRows').innerHTML = '';
+      playerRowIndex = 0;
+      editingGameId = null;
+      updateSaveButton();
+    }
+
+    function editGame(gameId) {
+      const game = appData.games.find(g => g.id === gameId);
+      if (!game) return;
+      
+      editingGameId = gameId;
+      
+      // 填充基础信息
+      document.getElementById('gameDate').value = game.date;
+      document.getElementById('gameScript').value = game.scriptId;
+      document.getElementById('storyteller').value = game.storyteller;
+      document.getElementById('gameResult').value = game.result || '';
+      document.getElementById('failedGod').value = game.failedGod || 0;
+      
+      // 清空玩家列表并填充
+      document.getElementById('playerRows').innerHTML = '';
+      playerRowIndex = 0;
+      
+      const nonStPlayers = game.players.filter(p => !p.isStoryteller);
+      nonStPlayers.forEach(p => {
+        addPlayerRow({
+          name: p.name,
+          startRole: p.startRole,
+          startTeam: p.startTeam,
+          endRole: getCharDisplayName(p.endRole),
+          endTeam: p.endTeam,
+          changes: p.changes || []
+        });
+      });
+      
+      updateSaveButton();
+      
+      // 滚动到表单区域
+      document.getElementById('gameForm').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function updateSaveButton() {
+      const saveBtn = document.getElementById('saveGameBtn');
+      const cancelBtn = document.getElementById('cancelEditBtn');
+      if (editingGameId) {
+        saveBtn.textContent = '更新对局';
+        saveBtn.classList.remove('bg-red-600', 'hover:bg-red-500');
+        saveBtn.classList.add('bg-yellow-600', 'hover:bg-yellow-500');
+        cancelBtn.classList.remove('hidden');
+      } else {
+        saveBtn.textContent = '保存对局';
+        saveBtn.classList.remove('bg-yellow-600', 'hover:bg-yellow-500');
+        saveBtn.classList.add('bg-red-600', 'hover:bg-red-500');
+        cancelBtn.classList.add('hidden');
+      }
+    }
+
+    function cancelEdit() {
+      clearGameForm();
+    }
+
+    // ==================== 文字解析 ====================
+    function parseQuickInput() {
+      const input = document.getElementById('quickInput').value.trim();
+      if (!input) {
+        showToast('请输入内容', 'error');
+        return;
+      }
+      
+      let text = input;
+      
+      // 提取日期
+      let date = '';
+      const dateMatch = text.match(/(\d{4})年(\d{1,2})月(\d{1,2})日/);
+      if (dateMatch) {
+        date = `${dateMatch[1]}-${String(dateMatch[2]).padStart(2, '0')}-${String(dateMatch[3]).padStart(2, '0')}`;
+        text = text.replace(/\d{4}年\d{1,2}月\d{1,2}日/, '').trim();
+      } else {
+        const dateMatch2 = text.match(/(\d{4})-(\d{2})-(\d{2})/);
+        if (dateMatch2) {
+          date = `${dateMatch2[1]}-${dateMatch2[2]}-${dateMatch2[3]}`;
+          text = text.replace(/\d{4}-\d{2}-\d{2}/, '').trim();
+        }
+      }
+      
+      // 提取说书人：找"XXX说书人"模式，XXX是说书人名字
+      let storyteller = '';
+      const stMatch = text.match(/(\S+?)说书人/);
+      if (stMatch) {
+        storyteller = stMatch[1];
+        text = text.replace(/\S+?说书人/, '').trim();
+      }
+      
+      // 提取对局结果
+      let gameResult = '';
+      const resultPatterns = [
+        { pattern: /善良获胜|善胜/, value: 'good_win' },
+        { pattern: /邪恶获胜|恶胜/, value: 'evil_win' },
+        { pattern: /玩家落败|玩家败/, value: 'player_lose' },
+        { pattern: /说书人落败|说书败/, value: 'st_lose' }
+      ];
+      for (const rp of resultPatterns) {
+        const m = text.match(rp.pattern);
+        if (m) {
+          gameResult = rp.value;
+          text = text.replace(rp.pattern, '').trim();
+          break;
+        }
+      }
+      
+      // 按空格分割剩余部分
+      const parts = text.split(/\s+/).filter(p => p);
+      
+      // 第一个词是剧本名
+      const scriptName = parts[0] || '';
+      const playerParts = parts.slice(1);
+      
+      // 收集所有角色名，按长度降序排列（优先匹配长角色名）
+      const allCharNames = [];
+      appData.scripts.forEach(script => {
+        script.characters.forEach(char => {
+          const charName = char.name.trim();
+          if (charName && !allCharNames.includes(charName)) {
+            allCharNames.push(charName);
+          }
+        });
+      });
+      allCharNames.sort((a, b) => b.length - a.length);
+      
+      // 解析每个"玩家名+角色名"组合
+      // 策略：从文本末尾用已知角色名做最长匹配，剩余部分为玩家名
+      const players = [];
+      
+      for (const part of playerParts) {
+        const trimmedPart = part.trim();
+        let playerParsed = false;
+        
+        // 优先用已知角色名从末尾匹配
+        for (const charName of allCharNames) {
+          if (trimmedPart.endsWith(charName)) {
+            const playerName = trimmedPart.slice(0, trimmedPart.length - charName.length);
+            if (playerName) {
+              players.push({
+                name: playerName,
+                role: charName
+              });
+              playerParsed = true;
+              break;
+            }
+          }
+          // 也检查角色名是否就是整个文本（没写玩家名的情况）
+          if (part === charName) {
+            players.push({
+              name: part,
+              role: charName
+            });
+            playerParsed = true;
+            break;
+          }
+        }
+        
+        if (!playerParsed) {
+          // 尝试用角色名在文本中间匹配（角色名可能在前）
+          for (const charName of allCharNames) {
+            if (trimmedPart.startsWith(charName)) {
+              const playerName = trimmedPart.slice(charName.length);
+              if (playerName) {
+                players.push({
+                  name: playerName,
+                  role: charName
+                });
+                playerParsed = true;
+                break;
+              }
+            }
+          }
+        }
+        
+        if (!playerParsed) {
+          // 无法识别角色，整个作为玩家名，角色留空
+          players.push({
+            name: trimmedPart,
+            role: ''
+          });
+        }
+      }
+      
+      currentParsedData = {
+        date,
+        scriptName,
+        storyteller,
+        gameResult,
+        players
+      };
+      
+      // 显示预览
+      const preview = document.getElementById('parsePreview');
+      const result = document.getElementById('parseResult');
+      
+      result.innerHTML = `
+        <div><span class="text-gray-500">日期:</span> ${date || '未识别'}</div>
+        <div><span class="text-gray-500">剧本:</span> ${scriptName || '未识别'}</div>
+        <div><span class="text-gray-500">说书人:</span> ${storyteller || '未识别'}</div>
+        <div><span class="text-gray-500">结果:</span> ${gameResult ? getResultLabel(gameResult) : '未识别'}</div>
+        <div class="mt-2"><span class="text-gray-500">玩家列表:</span></div>
+        ${players.map(p => `<div class="ml-4">${p.name} → ${p.role || '未识别'}</div>`).join('')}
+      `;
+      
+      preview.classList.remove('hidden');
+    }
+
+    function confirmParse() {
+      if (!currentParsedData) return;
+      
+      // 设置日期
+      if (currentParsedData.date) {
+        document.getElementById('gameDate').value = currentParsedData.date;
+      }
+      
+      // 匹配剧本
+      const script = appData.scripts.find(s => s.name === currentParsedData.scriptName);
+      if (script) {
+        document.getElementById('gameScript').value = script.id;
+      } else {
+        showToast(`未找到剧本: ${currentParsedData.scriptName}`, 'error');
+      }
+      
+      // 设置说书人
+      document.getElementById('storyteller').value = currentParsedData.storyteller;
+      
+      // 设置对局结果
+      if (currentParsedData.gameResult) {
+        document.getElementById('gameResult').value = currentParsedData.gameResult;
+      }
+      
+      // 清空并添加玩家
+      document.getElementById('playerRows').innerHTML = '';
+      playerRowIndex = 0;
+      
+      // 获取角色映射（与getRoleOptions去重逻辑一致，同名角色只保留第一个）
+      const charMap = {};
+      const seenNames = new Set();
+      appData.scripts.forEach(s => {
+        s.characters.forEach(c => {
+          if (!seenNames.has(c.name)) {
+            seenNames.add(c.name);
+            charMap[c.name] = c.id;
+          }
+        });
+      });
+      
+      currentParsedData.players.forEach(p => {
+        const charId = charMap[p.role];
+        const team = charId ? getTeamFromChar(charId) : 'good';
+        
+        addPlayerRow({
+          name: p.name,
+          startRole: charId || '',
+          startTeam: team
+        });
+        if (charId) onRoleChange(playerRowIndex - 1);
+      });
+      
+      // 清空预览
+      document.getElementById('parsePreview').classList.add('hidden');
+      currentParsedData = null;
+      
+      showToast('已填充表单，请确认后保存');
+    }
+
+    function clearQuickInput() {
+      document.getElementById('quickInput').value = '';
+      document.getElementById('parsePreview').classList.add('hidden');
+      currentParsedData = null;
+    }
+
+    // ==================== 编号绑定录入 ====================
+    let currentBindData = null;
+
+    function importNicknameFile() {
+      const fileInput = document.getElementById('nicknameFile');
+      const file = fileInput.files[0];
+      if (!file) {
+        showToast('请选择文件', 'error');
+        return;
+      }
+      
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const content = e.target.result;
+        const lines = content.split('\n');
+        
+        lines.forEach(line => {
+          line = line.trim();
+          if (!line) return;
+          // 格式: QQ号 昵称
+          const parts = line.split(/\s+/);
+          if (parts.length >= 2) {
+            const qq = parts[0];
+            const name = parts.slice(1).join(' ');
+            appData.nicknameMap[qq] = name;
+          }
+        });
+        
+        saveData();
+        updateNicknameCount();
+        showToast(`已导入 ${Object.keys(appData.nicknameMap).length} 个昵称`);
+      };
+      reader.readAsText(file);
+    }
+
+    function updateNicknameCount() {
+      const count = Object.keys(appData.nicknameMap).length;
+      document.getElementById('nicknameCount').textContent = `(${count}个)`;
+    }
+
+    function showNicknameManager() {
+      const entries = Object.entries(appData.nicknameMap);
+      if (entries.length === 0) {
+        showToast('昵称库为空', 'error');
+        return;
+      }
+      
+      let html = `
+        <div class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onclick="closeNicknameManager(event)">
+          <div class="bg-gray-900 rounded-xl p-5 max-w-lg w-full max-h-[80vh] overflow-auto" onclick="event.stopPropagation()">
+            <h3 class="font-bold text-lg mb-4">昵称库管理</h3>
+            <div class="space-y-2 mb-4 max-h-60 overflow-auto">
+      `;
+      
+      entries.forEach(([qq, name]) => {
+        html += `
+          <div class="flex items-center gap-2 p-2 bg-black/20 rounded">
+            <span class="text-xs text-gray-500 w-24">${qq}</span>
+            <span class="flex-1 text-sm">${name}</span>
+            <button onclick="deleteNickname('${qq}')" class="text-red-400 hover:text-red-300 text-sm">删除</button>
+          </div>
+        `;
+      });
+      
+      html += `
+            </div>
+            <div class="border-t border-gray-700 pt-4">
+              <h4 class="text-sm text-gray-400 mb-2">添加新映射</h4>
+              <div class="flex gap-2">
+                <input type="text" id="newNicknameQQ" placeholder="QQ号" class="flex-1 rounded p-2 text-sm bg-black/30">
+                <input type="text" id="newNicknameName" placeholder="昵称" class="flex-1 rounded p-2 text-sm bg-black/30">
+                <button onclick="addNickname()" class="btn-primary px-4 py-2 rounded text-sm">添加</button>
+              </div>
+            </div>
+            <div class="flex justify-between mt-4">
+              <button onclick="exportNicknameFile()" class="btn-secondary px-4 py-2 rounded text-sm">导出</button>
+              <button onclick="closeNicknameManager()" class="btn-primary px-4 py-2 rounded text-sm">关闭</button>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      const modal = document.createElement('div');
+      modal.id = 'nicknameModal';
+      modal.innerHTML = html;
+      document.body.appendChild(modal);
+    }
+
+    function closeNicknameManager(event) {
+      if (event && event.target !== event.currentTarget) return;
+      const modal = document.getElementById('nicknameModal');
+      if (modal) modal.remove();
+    }
+
+    function deleteNickname(qq) {
+      delete appData.nicknameMap[qq];
+      saveData();
+      updateNicknameCount();
+      showNicknameManager(); // 刷新列表
+    }
+
+    function addNickname() {
+      const qq = document.getElementById('newNicknameQQ').value.trim();
+      const name = document.getElementById('newNicknameName').value.trim();
+      if (!qq || !name) {
+        showToast('请填写QQ号和昵称', 'error');
+        return;
+      }
+      appData.nicknameMap[qq] = name;
+      saveData();
+      updateNicknameCount();
+      document.getElementById('newNicknameQQ').value = '';
+      document.getElementById('newNicknameName').value = '';
+      showNicknameManager(); // 刷新列表
+    }
+
+    function exportNicknameFile() {
+      const entries = Object.entries(appData.nicknameMap);
+      const content = entries.map(([qq, name]) => `${qq} ${name}`).join('\n');
+      const blob = new Blob([content], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = '昵称库.txt';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function parseBindInput() {
+      const playerInput = document.getElementById('bindInput').value.trim();
+      const roleInput = document.getElementById('roleInput').value.trim();
+      
+      if (!playerInput) {
+        showToast('请粘贴玩家列表', 'error');
+        return;
+      }
+      if (!roleInput) {
+        showToast('请粘贴角色列表', 'error');
+        return;
+      }
+
+      const allPlayers = [];
+      const allRoles = [];
+      let storyteller = null;
+      
+      // 提取说书人
+      const stMatch = playerInput.match(/说书人[：:]\s*([^(]+?)\s*\((\d{6,})\)/);
+      if (stMatch) {
+        const qq = stMatch[2];
+        const displayName = stMatch[1].trim();
+        const nickname = appData.nicknameMap[qq] || displayName;
+        storyteller = { name: nickname, displayName, code: qq };
+      }
+      
+      // 提取玩家
+      const playerRegex = /(\d+)[\.、]\s*([^(]+?)\s*\((\d{6,})\)/g;
+      let match;
+      while ((match = playerRegex.exec(playerInput)) !== null) {
+        const qq = match[3];
+        const displayName = match[2].trim();
+        const nickname = appData.nicknameMap[qq] || displayName;
+        allPlayers.push({
+          seq: parseInt(match[1]),
+          name: nickname,
+          displayName: displayName,
+          code: qq
+        });
+      }
+      
+      // 提取角色
+      const roleRegex = /(\d+)[\.、]\s*([\u4e00-\u9fa5]{2,6})/g;
+      while ((match = roleRegex.exec(roleInput)) !== null) {
+        allRoles.push({
+          seq: parseInt(match[1]),
+          name: match[2]
+        });
+      }
+
+      // 按序号排序
+      allPlayers.sort((a, b) => a.seq - b.seq);
+      allRoles.sort((a, b) => a.seq - b.seq);
+
+      if (allPlayers.length === 0 || allRoles.length === 0) {
+        showToast('未识别到玩家或角色，请检查格式', 'error');
+        console.log('players:', allPlayers.length, 'roles:', allRoles.length);
+        return;
+      }
+
+      // 生成绑定结果
+      currentBindData = [];
+      const count = Math.min(allPlayers.length, allRoles.length);
+      for (let i = 0; i < count; i++) {
+        currentBindData.push({
+          seq: i + 1,
+          name: allPlayers[i].name,
+          displayName: allPlayers[i].displayName,
+          code: allPlayers[i].code,
+          role: allRoles[i].name
+        });
+      }
+      // 保存说书人
+      currentBindData.storyteller = storyteller;
+
+      // 显示预览
+      const preview = document.getElementById('bindPreview');
+      const result = document.getElementById('bindResult');
+      
+      let html = '';
+      if (storyteller) {
+        html += `
+          <div class="flex items-center gap-2 py-1 bg-purple-900/30 rounded px-2 mb-2">
+            <span class="text-xs text-purple-400">说书人</span>
+            <span class="text-xs text-gray-500">(${storyteller.code})</span>
+            <input type="text" value="${storyteller.name}" data-st="1" onchange="updateBindST(this.value)" class="bg-transparent border-b border-purple-500 text-sm flex-1 px-1 focus:border-purple-400 focus:outline-none text-purple-300">
+            <span class="text-orange-400">→</span>
+            <span class="text-purple-400">说书人</span>
+          </div>
+        `;
+      }
+      
+      html += currentBindData.map((item, idx) => `
+        <div class="flex items-center gap-2 py-1 ${item.seq % 2 === 0 ? 'bg-black/20' : ''} rounded px-2">
+          <span class="w-6 text-center text-gray-500">${item.seq}</span>
+          ${item.code ? `<span class="text-xs text-orange-600 w-24">(${item.code})</span>` : '<span class="w-24"></span>'}
+          ${item.displayName !== item.name ? `<span class="text-xs text-gray-500 line-through">${item.displayName}</span>` : ''}
+          <input type="text" value="${item.name}" data-idx="${idx}" onchange="updateBindName(${idx}, this.value)" class="bg-transparent border-b border-gray-600 text-sm flex-1 px-1 focus:border-blue-400 focus:outline-none ${item.displayName !== item.name ? 'text-green-400' : ''}">
+          <span class="text-orange-400">→</span>
+          <span class="text-blue-400">${item.role}</span>
+        </div>
+      `).join('');
+      
+      result.innerHTML = html;
+      
+      preview.classList.remove('hidden');
+      
+      // 添加填充按钮
+      let fillBtn = preview.querySelector('.fill-btn');
+      if (!fillBtn) {
+        fillBtn = document.createElement('button');
+        fillBtn.className = 'fill-btn btn-primary px-5 py-2 rounded-lg mt-3 w-full';
+        fillBtn.textContent = '填充到表单';
+        fillBtn.onclick = () => fillBindToForm();
+        preview.appendChild(fillBtn);
+      }
+    }
+
+    function updateBindName(idx, value) {
+      if (currentBindData && currentBindData[idx]) {
+        currentBindData[idx].name = value;
+      }
+    }
+
+    function updateBindST(value) {
+      if (currentBindData && currentBindData.storyteller) {
+        currentBindData.storyteller.name = value;
+      }
+    }
+
+    function fillBindToForm() {
+      if (!currentBindData || currentBindData.length === 0) return;
+      
+      // 清空玩家列表
+      document.getElementById('playerRows').innerHTML = '';
+      playerRowIndex = 0;
+      
+      // 填充说书人
+      if (currentBindData.storyteller) {
+        document.getElementById('storyteller').value = currentBindData.storyteller.name;
+      }
+      
+      // 获取角色映射
+      const charMap = {};
+      const seenNames = new Set();
+      appData.scripts.forEach(s => {
+        s.characters.forEach(c => {
+          if (!seenNames.has(c.name)) {
+            seenNames.add(c.name);
+            charMap[c.name] = c.id;
+          }
+        });
+      });
+      
+      // 填充每个玩家
+      currentBindData.forEach(item => {
+        const charId = charMap[item.role];
+        const team = charId ? getTeamFromChar(charId) : 'good';
+        
+        addPlayerRow({
+          name: item.name,
+          startRole: charId || '',
+          startTeam: team
+        });
+        if (charId) onRoleChange(playerRowIndex - 1);
+      });
+      
+      showToast(`已填充 ${currentBindData.length} 名玩家到表单`);
+      clearBindInput();
+    }
+
+    function clearBindInput() {
+      document.getElementById('bindInput').value = '';
+      document.getElementById('roleInput').value = '';
+      document.getElementById('bindPreview').classList.add('hidden');
+      currentBindData = null;
+    }
+
+    // ==================== 对局历史 ====================
+    function renderGameHistory() {
+      const container = document.getElementById('gameHistory');
+      const filterScript = document.getElementById('filterScript').value;
+      
+      let games = [...appData.games].sort((a, b) => b.date.localeCompare(a.date));
+      
+      if (filterScript) {
+        games = games.filter(g => g.scriptId === filterScript);
+      }
+      
+      // 日期筛选：支持YYYY-MM-DD完整日期或YYYY-MM月份
+      const filterDate = document.getElementById('filterDate').value;
+      if (filterDate) {
+        games = games.filter(g => g.date.startsWith(filterDate));
+      }
+      
+      if (games.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state text-center py-12 rounded-lg">
+            <p class="text-gray-500 text-lg">暂无对局记录</p>
+            <p class="text-gray-600 text-sm mt-2">开始记录你的第一场血染钟楼对局吧</p>
+          </div>
+        `;
+        return;
+      }
+      
+      // 表格表头
+      const tableHeader = `
+        <table class="w-full text-sm">
+          <thead class="bg-black/30 sticky top-0">
+            <tr class="text-left text-gray-400 border-b border-gray-700/50">
+              <th class="p-2 font-medium">日期</th>
+              <th class="p-2 font-medium">剧本</th>
+              <th class="p-2 font-medium text-center">人数</th>
+              <th class="p-2 font-medium">说书人</th>
+              <th class="p-2 font-medium text-center">结果</th>
+              <th class="p-2 font-medium">玩家 & 角色</th>
+              <th class="p-2 font-medium text-center w-20">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+      
+      const tableRows = games.map((game, index) => {
+        const script = appData.scripts.find(s => s.id === game.scriptId);
+        const scriptName = script?.name || '未知剧本';
+        const playerCount = game.players.filter(p => !p.isStoryteller).length;
+        
+        // 玩家角色列表
+        const playersHtml = game.players
+          .filter(p => !p.isStoryteller)
+          .map(p => {
+            const teamClass = p.endTeam === 'good' ? 'team-good' : (p.endTeam === 'evil' ? 'team-evil' : 'text-gray-400');
+            const teamIcon = p.endTeam === 'good' ? '🔵' : (p.endTeam === 'evil' ? '🔴' : '⚪');
+            // 优先用角色ID查找，再尝试用角色名查找，都找不到才显示原始值
+            const roleName = p.endRole ? (
+              (script?.characters.find(c => c.id === p.endRole)?.name) ||
+              (script?.characters.find(c => c.name === p.endRole)?.name) ||
+              (getCharDisplayName(p.endRole) !== p.endRole ? getCharDisplayName(p.endRole) : '')
+            ) : '';
+            return `<div class="flex items-center gap-1 text-xs mb-1">
+              <span>${teamIcon}</span>
+              <span class="font-medium">${p.name}</span>
+              ${roleName ? `<span class="text-gray-500">/</span><span class="${teamClass}">${roleName}</span>` : ''}
+            </div>`;
+          }).join('');
+        
+        const resultClass = game.result === 'good_win' ? 'text-blue-400' : (game.result === 'evil_win' ? 'text-red-400' : 'text-gray-400');
+        const bgClass = index % 2 === 0 ? 'bg-black/10' : '';
+        
+        return `
+          <tr class="${bgClass} hover:bg-black/30 transition-all cursor-pointer border-b border-gray-800/30" onclick="showGameDetail('${game.id}')">
+            <td class="p-2 text-gray-300">${game.date}</td>
+            <td class="p-2 font-medium">${scriptName}</td>
+            <td class="p-2 text-center text-gray-300">${playerCount}人</td>
+            <td class="p-2 text-gray-400">${game.storyteller}</td>
+            <td class="p-2 text-center ${resultClass} font-medium">${getResultLabel(game.result)}</td>
+            <td class="p-2 max-w-xs">${playersHtml}</td>
+            <td class="p-2 text-center">
+              <button onclick="event.stopPropagation(); editGame('${game.id}')" class="text-yellow-400 hover:text-yellow-300 p-1" title="编辑">
+                ✏️
+              </button>
+              <button onclick="event.stopPropagation(); confirmDeleteGame('${game.id}')" class="text-red-400 hover:text-red-300 p-1" title="删除">
+                🗑️
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+      
+      container.innerHTML = tableHeader + tableRows + '</tbody></table>';
+    }
+
+    function filterGames() {
+      renderGameHistory();
+    }
+
+    function showGameDetail(gameId) {
+      const game = appData.games.find(g => g.id === gameId);
+      if (!game) return;
+      
+      const script = appData.scripts.find(s => s.id === game.scriptId);
+      
+      document.getElementById('modalGameTitle').textContent = `${script?.name || '未知剧本'} - ${game.date}`;
+      
+      const getCharName = (charId) => {
+        if (charId === 'storyteller') return '说书人';
+        // 先在当前剧本里找
+        if (script) {
+          const char = script.characters.find(c => c.id === charId);
+          if (char) return char.name;
+        }
+        // 当前剧本找不到，全局搜所有剧本
+        return getCharDisplayName(charId);
+      };
+      
+      // 构建详细转变过程
+      const buildDetailChain = (p) => {
+        const steps = [];
+        const pStartTeam = p.startTeam || getTeamFromChar(p.startRole);
+        // 开局
+        const startTeamClass = pStartTeam === 'evil' ? 'team-evil' : 'team-good';
+        steps.push(`<span class="${startTeamClass}">${getCharName(p.startRole)}(${getTeamDisplayName(pStartTeam)})</span>`);
+        // 每次转变
+        p.changes.forEach(c => {
+          const cTeam = c.team || 'good';
+          const cTeamClass = cTeam === 'evil' ? 'team-evil' : 'team-good';
+          steps.push(`<span class="${cTeamClass}">${getCharName(c.role)}(${getTeamDisplayName(cTeam)})</span>`);
+        });
+        // 终局（如果和最后一次转变不同）
+        const lastChange = p.changes[p.changes.length - 1];
+        if (p.changes.length === 0 || getCharName(p.endRole) !== getCharName(lastChange?.role) || p.endTeam !== lastChange?.team) {
+          const endTeamClass = p.endTeam === 'evil' ? 'team-evil' : 'team-good';
+          steps.push(`<span class="${endTeamClass}">${getCharName(p.endRole)}(${getTeamDisplayName(p.endTeam)})</span>`);
+        }
+        // 去重：开局和终局相同且无转变时只显示一次
+        if (steps.length === 2 && steps[0] === steps[1]) steps.pop();
+        return steps.join(' <span class="text-gray-600">→</span> ');
+      };
+      
+      document.getElementById('modalGameContent').innerHTML = `
+        ${game.result ? `<div class="mb-4">
+          <div class="text-gray-400 text-sm">对局结果</div>
+          <div class="font-bold text-lg ${game.result === 'good_win' ? 'text-blue-400' : game.result === 'evil_win' ? 'text-red-400' : 'text-gray-300'}">${getResultLabel(game.result)}</div>
+        </div>` : ''}
+        <div class="flex gap-6 mb-4">
+          <div>
+            <div class="text-gray-400 text-sm">说书人</div>
+            <div class="font-bold text-lg text-yellow-400">${game.storyteller}</div>
+          </div>
+          <div>
+            <div class="text-gray-400 text-sm"><span style="text-shadow: 0 0 10px rgba(220,38,38,0.5); color: #dc2626;">👍</span></div>
+            <div class="font-bold text-lg">${game.failedGod || 0}</div>
+          </div>
+        </div>
+        
+        <div class="mb-4">
+          <div class="text-gray-400 text-sm mb-2">玩家列表</div>
+          <div class="space-y-2">
+            ${game.players.filter(p => !p.isStoryteller).map(p => {
+              const hasChanges = p.changes && p.changes.length > 0;
+              return `
+              <div class="bg-black/30 rounded-lg p-3">
+                <div class="flex justify-between items-center">
+                  <span class="font-bold">${p.name}</span>
+                  ${!hasChanges ? `<span class="team-badge-${p.endTeam} px-2 py-0.5 rounded text-xs">${getTeamDisplayName(p.endTeam)}</span>` : ''}
+                </div>
+                <div class="text-sm mt-1">
+                  ${hasChanges ? `<span class="text-gray-500 text-xs mr-1">转变:</span>${buildDetailChain(p)}` : `<span class="text-gray-400">${buildDetailChain(p)}</span>`}
+                </div>
+              </div>
+            `;}).join('')}
+          </div>
+        </div>
+        
+        <div class="text-xs text-gray-500 text-right">
+          记录时间: ${new Date(game.createdAt).toLocaleString('zh-CN')}
+        </div>
+      `;
+      
+      document.getElementById('gameDetailModal').classList.remove('hidden');
+    }
+
+    function confirmDeleteGame(gameId) {
+      pendingDelete = { type: 'game', id: gameId };
+      document.getElementById('confirmMessage').textContent = '确定要删除这条对局记录吗？此操作不可撤销。';
+      document.getElementById('confirmModal').classList.remove('hidden');
+    }
+
+    // ==================== 统计数据 ====================
+    function renderResultStats() {
+      const counts = { good_win: 0, evil_win: 0, player_lose: 0, st_lose: 0 };
+      let total = 0;
+      
+      appData.games.forEach(game => {
+        if (game.result && counts.hasOwnProperty(game.result)) {
+          counts[game.result]++;
+          total++;
+        }
+      });
+      
+      const colors = {
+        good_win: { bg: 'rgba(96, 165, 250, 0.15)', border: 'rgba(96, 165, 250, 0.4)', text: '#60a5fa', bar: 'rgba(96, 165, 250, 0.7)' },
+        evil_win: { bg: 'rgba(248, 113, 113, 0.15)', border: 'rgba(248, 113, 113, 0.4)', text: '#f87171', bar: 'rgba(248, 113, 113, 0.7)' },
+        player_lose: { bg: 'rgba(156, 163, 175, 0.15)', border: 'rgba(156, 163, 175, 0.4)', text: '#9ca3af', bar: 'rgba(156, 163, 175, 0.7)' },
+        st_lose: { bg: 'rgba(251, 191, 36, 0.15)', border: 'rgba(251, 191, 36, 0.4)', text: '#fbbf24', bar: 'rgba(251, 191, 36, 0.7)' }
+      };
+      
+      const statsEl = document.getElementById('resultStats');
+      statsEl.innerHTML = Object.entries(counts).map(([key, count]) => {
+        const c = colors[key];
+        const pct = total > 0 ? ((count / total) * 100).toFixed(1) : '0.0';
+        return `
+          <div class="rounded-lg p-4 text-center" style="background:${c.bg};border:1px solid ${c.border}">
+            <div class="text-2xl font-bold" style="color:${c.text}">${count}</div>
+            <div class="text-sm text-gray-400">${RESULT_LABELS[key]}</div>
+            <div class="text-xs text-gray-500 mt-1">${pct}%</div>
+          </div>
+        `;
+      }).join('');
+      
+      // 比例条
+      const barEl = document.getElementById('resultBar');
+      if (total === 0) {
+        barEl.innerHTML = '';
+      } else {
+        barEl.innerHTML = Object.entries(counts).map(([key, count]) => {
+          if (count === 0) return '';
+          const pct = (count / total * 100).toFixed(1);
+          return `<div style="width:${pct}%;background:${colors[key].bar}" title="${RESULT_LABELS[key]} ${count}局 (${pct}%)"></div>`;
+        }).join('');
+      }
+    }
+
+    function searchPlayerStats() {
+      const playerName = document.getElementById('searchPlayer').value.trim();
+      if (!playerName) {
+        showToast('请输入玩家名称', 'error');
+        return;
+      }
+      
+      let totalGames = 0;
+      let goodGames = 0;
+      let evilGames = 0;
+      let stGames = 0;
+      let factionChangeGames = 0;
+      let failedGodTotal = 0;
+      const roleCount = {};
+      const teamCount = { good: 0, evil: 0 };
+      
+      appData.games.forEach(game => {
+        // 统计说书次数 + 失败的上帝
+        if (game.storyteller === playerName) {
+          stGames++;
+          failedGodTotal += game.failedGod || 0;
+        }
+        
+        // 统计游玩数据（不含说书）
+        const player = game.players.find(p => p.name === playerName && !p.isStoryteller);
+        if (player) {
+          totalGames++;
+          teamCount[player.endTeam]++;
+          if (player.endTeam === 'good') goodGames++;
+          else evilGames++;
+          
+          // 统计有转变的局数（只要有转变记录就算，不论开局终局是否相同）
+          if (player.changes && player.changes.length > 0) factionChangeGames++;
+          
+          // 统计所有角色（开局+每次转变，按角色名合并去重计算）
+          const allRoles = new Set();
+          allRoles.add(getCharDisplayName(player.startRole) || player.startRole);
+          if (player.changes) {
+            player.changes.forEach(c => {
+              allRoles.add(getCharDisplayName(c.role) || c.role);
+            });
+          }
+          allRoles.forEach(rName => {
+            if (rName) roleCount[rName] = (roleCount[rName] || 0) + 1;
+          });
+        }
+      });
+      
+      if (totalGames === 0 && stGames === 0) {
+        showToast('未找到该玩家的记录', 'error');
+        document.getElementById('playerStats').classList.add('hidden');
+        return;
+      }
+      
+      document.getElementById('playerStats').classList.remove('hidden');
+      document.getElementById('statTotalGames').textContent = totalGames;
+      document.getElementById('statGoodGames').textContent = goodGames;
+      document.getElementById('statEvilGames').textContent = evilGames;
+      document.getElementById('statFactionChange').textContent = factionChangeGames;
+      document.getElementById('statSTGames').textContent = stGames;
+      document.getElementById('statFailedGod').textContent = failedGodTotal;
+      
+      // 计算近两周游玩次数
+      const today = new Date();
+      const twoWeeksAgo = new Date(today);
+      twoWeeksAgo.setDate(today.getDate() - 14);
+      const twoWeeksAgoStr = twoWeeksAgo.toISOString().split('T')[0];
+      const todayStr = today.toISOString().split('T')[0];
+      let recentTwoWeeks = 0;
+      appData.games.forEach(game => {
+        if (game.date < twoWeeksAgoStr || game.date > todayStr) return;
+        if (game.storyteller === playerName) recentTwoWeeks++;
+        if (game.players.find(p => p.name === playerName && !p.isStoryteller)) recentTwoWeeks++;
+      });
+      document.getElementById('statRecentTwoWeeks').textContent = recentTwoWeeks;
+      
+      // 角色统计
+      const roleStats = document.getElementById('roleStats');
+      const roleEntries = Object.entries(roleCount).sort((a, b) => b[1] - a[1]);
+      
+      roleStats.innerHTML = roleEntries.map(([name, count]) => {
+        const percent = ((count / totalGames) * 100).toFixed(1);
+        return `
+          <div class="bg-black/30 rounded-lg p-3 flex justify-between items-center">
+            <span>${name}</span>
+            <div class="text-right">
+              <span class="font-bold">${count}</span>
+              <span class="text-gray-500 text-sm">(${percent}%)</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+      
+      if (roleEntries.length === 0) {
+        roleStats.innerHTML = '<div class="text-gray-500 col-span-3">暂无角色统计</div>';
+      }
+      
+      // 阵营统计
+      const teamStats = document.getElementById('teamStats');
+      teamStats.innerHTML = `
+        <div class="bg-blue-900/30 rounded-lg p-4 flex-1 text-center">
+          <div class="text-2xl font-bold team-good">${goodGames}</div>
+          <div class="text-sm text-gray-400">善良阵营</div>
+          <div class="text-xs text-gray-500 mt-1">${totalGames > 0 ? ((goodGames / totalGames) * 100).toFixed(1) : 0}%</div>
+        </div>
+        <div class="bg-red-900/30 rounded-lg p-4 flex-1 text-center">
+          <div class="text-2xl font-bold team-evil">${evilGames}</div>
+          <div class="text-sm text-gray-400">邪恶阵营</div>
+          <div class="text-xs text-gray-500 mt-1">${totalGames > 0 ? ((evilGames / totalGames) * 100).toFixed(1) : 0}%</div>
+        </div>
+      `;
+    }
+
+    function getCharacterById(charId) {
+      for (const script of appData.scripts) {
+        const char = script.characters.find(c => c.id === charId);
+        if (char) return char;
+      }
+      return null;
+    }
+
+    // 已选队友列表
+    let selectedTeammates = [];
+
+    function renderTeammateSelect() {
+      // 更新下拉列表
+      const datalist = document.getElementById('teammateDataList');
+      datalist.innerHTML = appData.players.map(p => `<option value="${p}">`).join('');
+      renderTeammateTags();
+    }
+
+    function addTeammate() {
+      const input = document.getElementById('teammateInput');
+      const name = input.value.trim();
+      if (!name) return;
+      if (selectedTeammates.includes(name)) {
+        showToast(`${name} 已添加`, 'error');
+        return;
+      }
+      if (!appData.players.includes(name)) {
+        showToast(`未找到玩家: ${name}`, 'error');
+        return;
+      }
+      selectedTeammates.push(name);
+      input.value = '';
+      renderTeammateTags();
+    }
+
+    function removeTeammate(name) {
+      selectedTeammates = selectedTeammates.filter(p => p !== name);
+      renderTeammateTags();
+    }
+
+    function renderTeammateTags() {
+      const container = document.getElementById('teammateTags');
+      if (selectedTeammates.length === 0) {
+        container.innerHTML = '<span class="text-gray-600 text-sm">未选择玩家</span>';
+        return;
+      }
+      container.innerHTML = selectedTeammates.map(name => `
+        <span class="inline-flex items-center gap-1 bg-red-900/50 border border-red-700/50 rounded-full px-3 py-1 text-sm">
+          ${name}
+          <button onclick="removeTeammate('${name}')" class="text-red-400 hover:text-red-300 ml-1">&times;</button>
+        </span>
+      `).join('');
+    }
+
+    function searchTeammates() {
+      if (selectedTeammates.length < 2) {
+        showToast('请至少选择2名玩家', 'error');
+        return;
+      }
+      
+      const selectedPlayers = [...selectedTeammates];
+      
+      const teammateCounts = {};
+      selectedPlayers.forEach(p => {
+        teammateCounts[p] = {};
+        selectedPlayers.forEach(other => {
+          if (p !== other) {
+            teammateCounts[p][other] = { good: 0, evil: 0, total: 0 };
+          }
+        });
+      });
+      
+      appData.games.forEach(game => {
+        const gamePlayers = game.players.filter(p => !p.isStoryteller);
+        
+        selectedPlayers.forEach(p1 => {
+          selectedPlayers.forEach(p2 => {
+            if (p1 >= p2) return;
+            
+            const player1 = gamePlayers.find(p => p.name === p1);
+            const player2 = gamePlayers.find(p => p.name === p2);
+            
+            if (player1 && player2 && player1.endTeam === player2.endTeam) {
+              teammateCounts[p1][p2][player1.endTeam]++;
+              teammateCounts[p1][p2].total++;
+            }
+          });
+        });
+      });
+      
+      const results = [];
+      selectedPlayers.forEach(p1 => {
+        Object.entries(teammateCounts[p1]).forEach(([p2, counts]) => {
+          if (counts.total > 0) {
+            results.push({
+              players: [p1, p2].sort(),
+              goodCount: counts.good,
+              evilCount: counts.evil,
+              totalCount: counts.total
+            });
+          }
+        });
+      });
+      
+      // 合并相同玩家组合
+      const merged = {};
+      results.forEach(r => {
+        const key = r.players.join('|');
+        if (!merged[key] || merged[key].totalCount < r.totalCount) {
+          merged[key] = r;
+        }
+      });
+      
+      const sortedResults = Object.values(merged).sort((a, b) => b.totalCount - a.totalCount);
+      
+      const container = document.getElementById('teammateResults');
+      if (sortedResults.length === 0) {
+        container.innerHTML = '<div class="text-gray-500">没有找到共同游戏的记录</div>';
+        return;
+      }
+      
+      container.innerHTML = sortedResults.map(r => `
+        <div class="bg-black/30 rounded-lg p-3 flex justify-between items-center">
+          <div class="flex gap-4">
+            <span class="font-bold">${r.players[0]}</span>
+            <span class="text-gray-500">-</span>
+            <span class="font-bold">${r.players[1]}</span>
+          </div>
+          <div class="flex gap-4 text-sm">
+            <span class="team-good">同善 ${r.goodCount}</span>
+            <span class="team-evil">同恶 ${r.evilCount}</span>
+            <span class="font-bold">共 ${r.totalCount} 次</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    let rankMode = 'high'; // 'high' = ≥10局, 'low' = ≤6局
+
+    function switchRankMode(mode) {
+      rankMode = mode;
+      document.getElementById('rankBtnHigh').className = mode === 'high' ? 'btn-primary px-4 py-2 rounded-lg text-sm font-medium' : 'btn-secondary px-4 py-2 rounded-lg text-sm font-medium';
+      document.getElementById('rankBtnLow').className = mode === 'low' ? 'btn-primary px-4 py-2 rounded-lg text-sm font-medium' : 'btn-secondary px-4 py-2 rounded-lg text-sm font-medium';
+      renderPlayerRank();
+    }
+
+    function renderPlayerRank() {
+      const selectedMonth = document.getElementById('statsMonth').value || '';
+      
+      // 统计每个玩家的游玩和说书次数
+      const playerStats = {};
+      appData.players.forEach(name => {
+        playerStats[name] = { play: 0, st: 0 };
+      });
+      
+      appData.games.forEach(game => {
+        if (selectedMonth && !game.date.startsWith(selectedMonth)) return;
+        game.players.filter(p => !p.isStoryteller).forEach(p => {
+          if (playerStats[p.name]) playerStats[p.name].play++;
+        });
+        if (playerStats[game.storyteller]) playerStats[game.storyteller].st++;
+      });
+      
+      // 过滤和排序（按总参与局数=游玩+说书，不重复）
+      let filtered;
+      if (rankMode === 'high') {
+        filtered = Object.entries(playerStats).filter(([_, s]) => s.play + s.st >= 10);
+      } else {
+        filtered = Object.entries(playerStats).filter(([_, s]) => s.play + s.st <= 6);
+      }
+      filtered.sort((a, b) => (b[1].play + b[1].st) - (a[1].play + a[1].st));
+      
+      const container = document.getElementById('playerRankList');
+      const titleEl = document.getElementById('monthlyChartTitle');
+      const monthLabel = selectedMonth ? `${selectedMonth}` : '全部';
+      titleEl.textContent = `${monthLabel} · ${rankMode === 'high' ? '≥10局' : '≤6局'}玩家排行（${filtered.length}人）`;
+      
+      if (filtered.length === 0) {
+        container.innerHTML = '<div class="text-gray-600 text-sm text-center py-4">暂无符合条件的玩家</div>';
+        return;
+      }
+      
+      container.innerHTML = filtered.map(([name, s], i) => `
+        <div class="flex items-center justify-between bg-black/20 rounded-lg px-3 py-2 hover:bg-black/30 transition-all">
+          <div class="flex items-center gap-3">
+            <span class="w-6 text-center text-sm ${i < 3 ? 'text-yellow-400 font-bold' : 'text-gray-500'}">${i + 1}</span>
+            <span class="font-medium">${name}</span>
+          </div>
+          <div class="flex gap-3 text-sm">
+            <span class="text-gray-300 font-bold">总计 ${s.play + s.st}</span>
+            <span class="text-red-400">游玩 ${s.play}</span>
+            <span class="text-yellow-400">说书 ${s.st}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderMonthlyChart() {
+      // 获取所有月份
+      const months = [...new Set(appData.games.map(g => g.date.substring(0, 7)))].sort().reverse();
+      const currentMonth = new Date().toISOString().split('T')[0].substring(0, 7);
+      
+      const monthSelect = document.getElementById('statsMonth');
+      if (!monthSelect.dataset.initialized) {
+        monthSelect.innerHTML = '<option value="">全部月份</option>' + 
+          months.map(m => `<option value="${m}">${m}</option>`).join('');
+        if (months.includes(currentMonth)) monthSelect.value = currentMonth;
+        monthSelect.dataset.initialized = 'true';
+      }
+      
+      const selectedMonth = monthSelect.value || '';
+      const playerName = document.getElementById('chartPlayerInput').value.trim();
+      const titleEl = document.getElementById('monthlyChartTitle');
+      const chartArea = document.getElementById('monthlyChartArea');
+      const rankArea = document.getElementById('playerRankArea');
+      
+      // 更新玩家候选列表
+      const datalist = document.getElementById('chartPlayerDataList');
+      datalist.innerHTML = appData.players.map(p => `<option value="${p}">`).join('');
+      
+      if (playerName) {
+        // 个人视图：该玩家每月的游玩场次 + 说书次数
+        rankArea.classList.add('hidden');
+        chartArea.classList.remove('hidden');
+        const monthLabel = selectedMonth ? selectedMonth : '全部';
+        titleEl.textContent = `${playerName} · ${monthLabel} 月度数据`;
+        
+        // 如果选了具体月份，只显示该月数据；否则显示所有月份
+        let displayMonths, playData, stData;
+        if (selectedMonth) {
+          // 选了月份，显示该月前后几个月的趋势
+          const idx = months.indexOf(selectedMonth);
+          const nearby = months.slice(Math.max(0, idx - 5), idx + 1).reverse();
+          if (nearby.length === 0) nearby.push(selectedMonth);
+          displayMonths = nearby;
+          playData = new Array(displayMonths.length).fill(0);
+          stData = new Array(displayMonths.length).fill(0);
+          appData.games.forEach(game => {
+            const gm = game.date.substring(0, 7);
+            const mi = displayMonths.indexOf(gm);
+            if (mi < 0) return;
+            const player = game.players.find(p => p.name === playerName && !p.isStoryteller);
+            if (player) playData[mi]++;
+            if (game.storyteller === playerName) stData[mi]++;
+          });
+        } else {
+          // 没选月份，显示所有月份
+          displayMonths = [...months].reverse();
+          playData = new Array(displayMonths.length).fill(0);
+          stData = new Array(displayMonths.length).fill(0);
+          appData.games.forEach(game => {
+            const gm = game.date.substring(0, 7);
+            const mi = displayMonths.indexOf(gm);
+            if (mi < 0) return;
+            const player = game.players.find(p => p.name === playerName && !p.isStoryteller);
+            if (player) playData[mi]++;
+            if (game.storyteller === playerName) stData[mi]++;
+          });
+        }
+        
+        if (monthlyChart) monthlyChart.destroy();
+        const ctx = document.getElementById('monthlyChart').getContext('2d');
+        monthlyChart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: displayMonths,
+            datasets: [
+              {
+                label: '游玩场次',
+                data: playData,
+                backgroundColor: 'rgba(220, 38, 38, 0.7)',
+                borderColor: 'rgba(220, 38, 38, 1)',
+                borderWidth: 1
+              },
+              {
+                label: '说书次数',
+                data: stData,
+                backgroundColor: 'rgba(184, 134, 11, 0.7)',
+                borderColor: 'rgba(184, 134, 11, 1)',
+                borderWidth: 1
+              }
+            ]
+          },
+          options: chartOptions()
+        });
+      } else {
+        // 总览：隐藏图表，显示玩家排行
+        chartArea.classList.add('hidden');
+        rankArea.classList.remove('hidden');
+        switchRankMode(rankMode);
+      }
+    }
+
+    function chartOptions() {
+      return {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            labels: { color: '#a89090' }
+          }
+        },
+        scales: {
+          x: {
+            ticks: { color: '#a89090' },
+            grid: { color: 'rgba(61, 42, 42, 0.5)' }
+          },
+          y: {
+            ticks: { color: '#a89090', stepSize: 1 },
+            grid: { color: 'rgba(61, 42, 42, 0.5)' },
+            beginAtZero: true
+          }
+        }
+      };
+    }
+
+    // ==================== 剧本管理 ====================
+    function renderScriptList() {
+      const container = document.getElementById('scriptList');
+      
+      if (appData.scripts.length === 0) {
+        container.innerHTML = `
+          <div class="col-span-3 empty-state text-center py-12 rounded-lg">
+            <p class="text-gray-500 text-lg">暂无剧本</p>
+            <p class="text-gray-600 text-sm mt-2">导入JSON或手动添加剧本</p>
+          </div>
+        `;
+        return;
+      }
+      
+      // 统计每个剧本的数据（通过scriptId匹配）
+      function getScriptStats(scriptId) {
+        const games = appData.games.filter(g => g.scriptId === scriptId);
+        const playCount = games.length;
+        const evilWins = games.filter(g => g.result === 'evil_win').length;
+        const goodWins = games.filter(g => g.result === 'good_win').length;
+        return { playCount, evilWins, goodWins };
+      }
+      
+      container.innerHTML = appData.scripts.map(script => {
+        const stats = getScriptStats(script.id);
+        return `
+        <div class="card rounded-xl p-4">
+          <div class="flex gap-4">
+            ${script.logo ? `<img src="${script.logo}" class="script-card-img" alt="${script.name}">` : '<div class="w-15 h-15 rounded bg-gray-800 flex items-center justify-center text-2xl">📜</div>'}
+            <div class="flex-1">
+              <h3 class="font-bold text-lg">${script.name}</h3>
+              ${script.author ? `<div class="text-sm text-gray-500">作者: ${script.author}</div>` : ''}
+              <div class="text-xs text-gray-600 mt-1">
+                <span class="text-blue-400">${script.characters.length}个角色</span>
+                ${stats.playCount > 0 ? `
+                  · <span class="text-yellow-400">游玩${stats.playCount}次</span>
+                  · <span class="team-evil">${stats.evilWins}邪恶获胜</span>
+                  · <span class="team-good">${stats.goodWins}善良获胜</span>
+                ` : ''}
+              </div>
+            </div>
+          </div>
+          <div class="flex gap-2 mt-3">
+            <button onclick="showScriptCharacters('${script.id}')" class="btn-secondary px-3 py-1 rounded text-xs flex-1">
+              查看角色
+            </button>
+            <button onclick="confirmDeleteScript('${script.id}')" class="text-red-400 hover:text-red-300 px-2" title="删除剧本">
+              🗑️
+            </button>
+          </div>
+        </div>
+      `}).join('');
+    }
+
+    function showScriptCharacters(scriptId) {
+      const script = appData.scripts.find(s => s.id === scriptId);
+      if (!script) return;
+      
+      const teams = {
+        townsfolk: { name: '镇民', color: 'text-blue-400' },
+        outsider: { name: '外来者', color: 'text-blue-300' },
+        minion: { name: '爪牙', color: 'text-red-400' },
+        demon: { name: '恶魔', color: 'text-red-600' },
+        fabled: { name: '传说', color: 'text-yellow-400' }
+      };
+      
+      document.getElementById('modalGameTitle').textContent = `${script.name} - 角色列表`;
+      document.getElementById('modalGameContent').innerHTML = `
+        <div class="space-y-4">
+          ${['townsfolk', 'outsider', 'minion', 'demon', 'fabled'].map(team => {
+            const chars = script.characters.filter(c => c.team === team);
+            if (chars.length === 0) return '';
+            return `
+              <div>
+                <h4 class="${teams[team].color} font-bold mb-2">${teams[team].name}</h4>
+                <div class="grid grid-cols-2 gap-2">
+                  ${chars.map(c => `
+                    <div class="bg-black/30 rounded p-2 text-sm">
+                      ${c.name}
+                      ${c.ability ? `<div class="text-xs text-gray-500 mt-1 truncate">${c.ability}</div>` : ''}
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+      document.getElementById('gameDetailModal').classList.remove('hidden');
+    }
+
+    function confirmDeleteScript(scriptId) {
+      pendingDelete = { type: 'script', id: scriptId };
+      document.getElementById('confirmMessage').textContent = '确定要删除这个剧本吗？这将同时删除所有相关对局记录。';
+      document.getElementById('confirmModal').classList.remove('hidden');
+    }
+
+    function importScriptJson(jsonStr) {
+      if (!jsonStr) {
+        showToast('请选择JSON文件', 'error');
+        return;
+      }
+      
+      try {
+        const data = JSON.parse(jsonStr);
+        
+        // 分离元数据和角色
+        const metaEntry = data.find(item => item.id === '_meta');
+        const charEntries = data.filter(item => item.id !== '_meta' && item.team !== 'a jinxed');
+        
+        if (charEntries.length === 0 && !metaEntry) {
+          showToast('未找到有效的剧本数据', 'error');
+          return;
+        }
+        
+        // 一个JSON文件就是一个剧本，所有角色归入同一个剧本
+        const scriptName = metaEntry ? metaEntry.name : '';
+        const scriptId = scriptName ? scriptName.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_\u4e00-\u9fff]/g, '') : ('script_' + Date.now());
+        
+        const script = {
+          id: scriptId,
+          name: scriptName || scriptId,
+          author: metaEntry ? (metaEntry.author || '') : '',
+          logo: metaEntry ? (metaEntry.logo || '') : '',
+          almanac: metaEntry ? (metaEntry.almanac || '') : '',
+          characters: charEntries.map(entry => ({
+            id: entry.id,
+            name: entry.name,
+            team: entry.team,
+            ability: entry.ability || '',
+            image: entry.image || '',
+            reminders: entry.reminders || []
+          }))
+        };
+        
+        // 添加或更新剧本（按name匹配）
+        let addedCount = 0;
+        let updatedCount = 0;
+        
+        const existingIndex = appData.scripts.findIndex(s => s.name === script.name);
+        if (existingIndex >= 0) {
+          appData.scripts[existingIndex] = script;
+          updatedCount++;
+        } else {
+          appData.scripts.push(script);
+          addedCount++;
+        }
+        
+        saveData();
+        updateScriptSelects();
+        renderScriptList();
+        
+        document.getElementById('scriptJsonFile').value = '';
+        showToast(`成功导入 ${script.name}，包含 ${script.characters.length} 个角色${updatedCount > 0 ? '（已更新）' : ''}`);
+        
+      } catch (e) {
+        showToast('JSON格式错误: ' + e.message, 'error');
+      }
+    }
+
+    function handleScriptFileImport(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const info = document.getElementById('scriptFileInfo');
+      info.classList.remove('hidden');
+      info.innerHTML = `<p class="text-gray-400 text-sm">📄 ${file.name} (${(file.size/1024).toFixed(1)}KB)</p>`;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        importScriptJson(e.target.result);
+      };
+      reader.readAsText(file);
+    }
+
+    function loadSampleScript() {
+      const sampleJson = `[
+  {
+    "id": "_meta",
+    "name": "暗流涌动",
+    "author": "The Pandemonium Institute",
+    "logo": "https://bloodontheclocktower.com/images/scripts/bad-moon-rising.png",
+    "almanac": "暗流涌动是一个适合新手的剧本"
+  },
+  {
+    "id": "1_badmoonrising",
+    "name": "磨坊主",
+    "team": "townsfolk",
+    "ability": "每晚，获取一个存活玩家的角色阵营信息。"
+  },
+  {
+    "id": "2_badmoonrising",
+    "name": "洗衣妇",
+    "team": "townsfolk",
+    "ability": "每晚，获得与你相邻的玩家中，是否有恶魔的提示信息。"
+  },
+  {
+    "id": "3_badmoonrising",
+    "name": "图书管理员",
+    "team": "townsfolk",
+    "ability": "每晚，获得一个外来者角色名称的提示。"
+  },
+  {
+    "id": "4_badmoonrising",
+    "name": "调查员",
+    "team": "townsfolk",
+    "ability": "每晚，获得一个玩家令牌，查看其角色。"
+  },
+  {
+    "id": "5_badmoonrising",
+    "name": "厨师",
+    "team": "townsfolk",
+    "ability": "每晚，获得相邻玩家之间的恶魔阵营差距。"
+  },
+  {
+    "id": "6_badmoonrising",
+    "name": "祖母",
+    "team": "townsfolk",
+    "ability": "选择一个玩家和角色。如果该玩家以该角色死亡，你也被处决。"
+  },
+  {
+    "id": "7_badmoonrising",
+    "name": "占卜师",
+    "team": "townsfolk",
+    "ability": "每晚，选择一名玩家获取其角色信息。"
+  },
+  {
+    "id": "8_badmoonrising",
+    "name": "守夜人",
+    "team": "townsfolk",
+    "ability": "每晚，选择一个玩家。首个对被选中玩家造成死亡的恶魔将死亡。"
+  },
+  {
+    "id": "9_badmoonrising",
+    "name": "捕快",
+    "team": "townsfolk",
+    "ability": "每个白天，你可以猜测一名存活玩家的角色。猜错则失去此能力。"
+  },
+  {
+    "id": "10_badmoonrising",
+    "name": "僧侣",
+    "team": "townsfolk",
+    "ability": "每个夜晚，选择一名玩家（不包括自己）。该玩家当晚不会死亡。"
+  },
+  {
+    "id": "11_badmoonrising",
+    "name": "间谍",
+    "team": "outsider",
+    "ability": "你可能会得知某些信息。你属于外乡人。"
+  },
+  {
+    "id": "12_badmoonrising",
+    "name": "傻子",
+    "team": "outsider",
+    "ability": "当你被提名时，若你还有提名权利，你可以将提名转移到另一位玩家。"
+  },
+  {
+    "id": "13_badmoonrising",
+    "name": "大恶魔",
+    "team": "demon",
+    "ability": "每个夜晚，选择一名玩家将其杀死。三个善良玩家死亡后，恶魔获胜。"
+  },
+  {
+    "id": "14_badmoonrising",
+    "name": "小恶魔",
+    "team": "demon",
+    "ability": "每晚，选择一名玩家将其杀死。若你死亡，善良胜利。"
+  },
+  {
+    "id": "15_badmoonrising",
+    "name": "洗脑者",
+    "team": "minion",
+    "ability": "每晚，选择一名玩家。当该玩家被提名并即将被处决时，他不会被处决。"
+  },
+  {
+    "id": "16_badmoonrising",
+    "name": "男爵",
+    "team": "minion",
+    "ability": "场上额外有2个额外的外乡人角色。"
+  },
+  {
+    "id": "17_badmoonrising",
+    "name": "投毒者",
+    "team": "minion",
+    "ability": "每晚，选择一名玩家。该玩家在下个夜晚死亡。"
+  }
+]`;
+      importScriptJson(sampleJson);
+    }
+
+    function addNewScript() {
+      const name = document.getElementById('newScriptName').value.trim();
+      const author = document.getElementById('newScriptAuthor').value.trim();
+      const logo = document.getElementById('newScriptLogo').value.trim();
+      
+      if (!name) {
+        showToast('请输入剧本名称', 'error');
+        return;
+      }
+      
+      // 生成ID：先尝试英文，纯中文则用时间戳
+      let id = name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+      if (!id) {
+        id = 'script_' + Date.now();
+      }
+      
+      // 检查是否已存在
+      if (appData.scripts.find(s => s.id === id)) {
+        showToast('剧本已存在', 'error');
+        return;
+      }
+      
+      appData.scripts.push({
+        id,
+        name,
+        author,
+        logo,
+        almanac: '',
+        characters: []
+      });
+      
+      saveData();
+      updateScriptSelects();
+      renderScriptList();
+      
+      // 清空表单并显示角色添加
+      document.getElementById('newScriptName').value = '';
+      document.getElementById('newScriptAuthor').value = '';
+      document.getElementById('newScriptLogo').value = '';
+      document.getElementById('newCharacterForm').classList.remove('hidden');
+      document.getElementById('charScriptSelect').value = id;
+      
+      showToast('剧本已创建，可继续添加角色');
+    }
+
+    function addNewCharacter() {
+      const scriptId = document.getElementById('charScriptSelect').value;
+      const name = document.getElementById('newCharName').value.trim();
+      const team = document.getElementById('newCharTeam').value;
+      const ability = document.getElementById('newCharAbility').value.trim();
+      
+      if (!scriptId || !name) {
+        showToast('请选择剧本并输入角色名称', 'error');
+        return;
+      }
+      
+      const script = appData.scripts.find(s => s.id === scriptId);
+      if (!script) {
+        showToast('剧本不存在', 'error');
+        return;
+      }
+      
+      // 生成ID：先尝试英文，纯中文则用时间戳
+      let id = name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+      if (!id) {
+        id = 'char_' + Date.now();
+      }
+      
+      if (script.characters.find(c => c.id === id)) {
+        showToast('角色已存在', 'error');
+        return;
+      }
+      
+      script.characters.push({
+        id,
+        name,
+        team,
+        ability,
+        image: '',
+        reminders: []
+      });
+      
+      saveData();
+      updateScriptSelects();
+      renderScriptList();
+      
+      document.getElementById('newCharName').value = '';
+      document.getElementById('newCharAbility').value = '';
+      
+      showToast('角色已添加');
+    }
+
+    // ==================== 数据管理 ====================
+    function updateExportStats() {
+      document.getElementById('exportScriptCount').textContent = appData.scripts.length;
+      document.getElementById('exportPlayerCount').textContent = appData.players.length;
+      document.getElementById('exportGameCount').textContent = appData.games.length;
+    }
+
+    function exportData() {
+      const dataStr = JSON.stringify(appData, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `血染钟楼数据_${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('数据已导出');
+    }
+
+    function handleImport(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const imported = JSON.parse(e.target.result);
+          
+          // 验证数据结构
+          if (!imported.scripts || !imported.players || !imported.games) {
+            throw new Error('数据格式错误');
+          }
+          
+          // 合并数据
+          let newScripts = 0, newPlayers = 0, newGames = 0;
+          
+          // 合并剧本
+          imported.scripts.forEach(script => {
+            const existing = appData.scripts.findIndex(s => s.id === script.id);
+            if (existing >= 0) {
+              appData.scripts[existing] = script;
+            } else {
+              appData.scripts.push(script);
+              newScripts++;
+            }
+          });
+          
+          // 合并玩家
+          imported.players.forEach(player => {
+            if (!appData.players.includes(player)) {
+              appData.players.push(player);
+              newPlayers++;
+            }
+          });
+          
+          // 合并对局
+          imported.games.forEach(game => {
+            if (!appData.games.find(g => g.id === game.id)) {
+              appData.games.push(game);
+              newGames++;
+            }
+          });
+          
+          saveData();
+          updatePlayerList();
+          updateScriptSelects();
+          renderGameHistory();
+          updateExportStats();
+          
+          const result = document.getElementById('importResult');
+          result.classList.remove('hidden');
+          result.innerHTML = `
+            <div class="text-green-400">✓ 导入成功</div>
+            <div class="text-sm text-gray-400 mt-1">
+              新增剧本: ${newScripts} | 新增玩家: ${newPlayers} | 新增对局: ${newGames}
+            </div>
+          `;
+          
+          showToast('数据导入成功');
+        } catch (e) {
+          showToast('导入失败: ' + e.message, 'error');
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = '';
+    }
+
+    function confirmClearData() {
+      pendingDelete = { type: 'all' };
+      document.getElementById('confirmMessage').textContent = '确定要清空所有数据吗？这将删除所有剧本、玩家和对局记录，且无法恢复！';
+      document.getElementById('confirmModal').classList.remove('hidden');
+    }
+
+    function executeDelete() {
+      if (!pendingDelete) return;
+      
+      if (pendingDelete.type === 'game') {
+        appData.games = appData.games.filter(g => g.id !== pendingDelete.id);
+        saveData();
+        renderGameHistory();
+        showToast('对局已删除');
+      } else if (pendingDelete.type === 'script') {
+        const scriptId = pendingDelete.id;
+        appData.scripts = appData.scripts.filter(s => s.id !== scriptId);
+        appData.games = appData.games.filter(g => g.scriptId !== scriptId);
+        showToast('剧本已删除');
+        updateScriptSelects();
+        renderScriptList();
+      } else if (pendingDelete.type === 'all') {
+        appData = JSON.parse(JSON.stringify(DEFAULT_DATA));
+        saveData();
+        updatePlayerList();
+        updateScriptSelects();
+        renderGameHistory();
+        updateExportStats();
+        showToast('所有数据已清空');
+      }
+      
+      closeModal('confirmModal');
+      pendingDelete = null;
+    }
+
+    // ==================== 工具函数 ====================
+    function closeModal(modalId) {
+      document.getElementById(modalId).classList.add('hidden');
+    }
+
+    function showToast(message, type = 'success') {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.className = 'fixed bottom-6 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-lg shadow-2xl transition-all duration-300 z-50 blood-border';
+      
+      if (type === 'error') {
+        toast.style.background = 'var(--accent-red)';
+      } else {
+        toast.style.background = 'var(--bg-tertiary)';
+      }
+      
+      toast.classList.remove('opacity-0', 'pointer-events-none');
+      toast.classList.add('opacity-100');
+      
+      setTimeout(() => {
+        toast.classList.remove('opacity-100');
+        toast.classList.add('opacity-0', 'pointer-events-none');
+      }, 3000);
+    }
+
+    // 点击模态框外部关闭
+    document.querySelectorAll('.modal-overlay').forEach(modal => {
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          modal.classList.add('hidden');
+        }
+      });
+    });
+
+    // 初始化
+    init();
+    
+    // ==================== 日历选择器 ====================
+    let calendarYear = new Date().getFullYear();
+    let calendarMonth = new Date().getMonth();
+    let calendarMode = 'single'; // 'single' 或 'month'
+    let selectedDate = null; // 存储选中日期
+    
+    // 切换日历显示
+    function toggleCalendar(event) {
+      event.stopPropagation();
+      const dropdown = document.getElementById('calendarDropdown');
+      const isHidden = dropdown.classList.contains('hidden');
+      
+      if (isHidden) {
+        // 如果输入框有值，解析并设置日历月份
+        const inputVal = document.getElementById('filterDate').value;
+        if (inputVal) {
+          const parsed = parseDateInput(inputVal);
+          if (parsed) {
+            calendarYear = parsed.year;
+            calendarMonth = parsed.month;
+            selectedDate = parsed.fullDate;
+          }
+        } else {
+          // 默认显示今天所在的月份
+          const today = new Date();
+          calendarYear = today.getFullYear();
+          calendarMonth = today.getMonth();
+          selectedDate = null;
+        }
+        renderCalendar();
+        dropdown.classList.remove('hidden');
+        updateClearButton();
+      } else {
+        dropdown.classList.add('hidden');
+      }
+    }
+    
+    // 关闭日历（点击外部时）
+    document.addEventListener('click', function(event) {
+      const dropdown = document.getElementById('calendarDropdown');
+      const container = document.querySelector('.date-picker-container');
+      if (!container.contains(event.target)) {
+        dropdown.classList.add('hidden');
+      }
+    });
+    
+    // 渲染日历
+    function renderCalendar() {
+      const titleEl = document.getElementById('calendarTitle');
+      const daysEl = document.getElementById('calendarDays');
+      
+      const monthNames = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+      titleEl.textContent = `${calendarYear}年 ${monthNames[calendarMonth]}`;
+      
+      // 获取当月第一天是星期几
+      const firstDay = new Date(calendarYear, calendarMonth, 1).getDay();
+      // 获取当月总天数
+      const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
+      // 获取上个月天数
+      const daysInPrevMonth = new Date(calendarYear, calendarMonth, 0).getDate();
+      
+      // 获取今天的日期（用于高亮）
+      const today = new Date();
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      
+      let html = '';
+      
+      // 上个月的部分
+      for (let i = firstDay - 1; i >= 0; i--) {
+        const day = daysInPrevMonth - i;
+        html += `<div class="calendar-day other-month">${day}</div>`;
+      }
+      
+      // 当月的部分
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${calendarYear}-${String(calendarMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        let classes = 'calendar-day';
+        
+        // 今日高亮
+        if (dateStr === todayStr) {
+          classes += ' today';
+        }
+        
+        // 选中高亮
+        if (selectedDate && dateStr === selectedDate) {
+          classes += ' selected';
+        }
+        
+        html += `<div class="${classes}" onclick="selectDate('${dateStr}')">${day}</div>`;
+      }
+      
+      // 下个月的部分（补齐到42格）
+      const totalCells = firstDay + daysInMonth;
+      const remainingCells = 42 - totalCells;
+      for (let day = 1; day <= remainingCells; day++) {
+        html += `<div class="calendar-day other-month">${day}</div>`;
+      }
+      
+      daysEl.innerHTML = html;
+    }
+    
+    // 选择日期
+    function selectDate(dateStr) {
+      if (calendarMode === 'single') {
+        // 单日模式：直接选中
+        selectedDate = dateStr;
+        document.getElementById('filterDate').value = dateStr;
+        renderCalendar();
+        document.getElementById('calendarDropdown').classList.add('hidden');
+        updateClearButton();
+        filterGames();
+      } else {
+        // 整月模式：选中整个月份
+        const monthStr = dateStr.substring(0, 7);
+        document.getElementById('filterDate').value = monthStr;
+        selectedDate = null;
+        document.getElementById('calendarDropdown').classList.add('hidden');
+        updateClearButton();
+        filterGames();
+      }
+    }
+    
+    // 设置日历模式
+    function setCalendarMode(mode) {
+      calendarMode = mode;
+      document.getElementById('modeSingle').classList.toggle('active', mode === 'single');
+      document.getElementById('modeMonth').classList.toggle('active', mode === 'month');
+    }
+    
+    // 上个月
+    function prevMonth() {
+      calendarMonth--;
+      if (calendarMonth < 0) {
+        calendarMonth = 11;
+        calendarYear--;
+      }
+      renderCalendar();
+    }
+    
+    // 下个月
+    function nextMonth() {
+      calendarMonth++;
+      if (calendarMonth > 11) {
+        calendarMonth = 0;
+        calendarYear++;
+      }
+      renderCalendar();
+    }
+    
+    // 清除日期筛选
+    function clearDateFilter() {
+      document.getElementById('filterDate').value = '';
+      selectedDate = null;
+      updateClearButton();
+      filterGames();
+    }
+    
+    // 更新清除按钮显示
+    function updateClearButton() {
+      const clearBtn = document.getElementById('clearDateBtn');
+      const hasValue = document.getElementById('filterDate').value !== '';
+      clearBtn.classList.toggle('hidden', !hasValue);
+    }
+    
+    // 智能解析日期输入
+    function parseDateInput(input) {
+      if (!input) return null;
+      const trimmed = input.trim();
+      const today = new Date();
+      const currentYear = today.getFullYear();
+      const currentMonth = today.getMonth() + 1;
+      
+      // 完整日期格式：2026-06-18、2026/06/18
+      let match = trimmed.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+      if (match) {
+        const year = parseInt(match[1]);
+        const month = parseInt(match[2]);
+        const day = parseInt(match[3]);
+        if (year >= 2000 && year <= 2100 && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+          return {
+            year,
+            month: month - 1,
+            fullDate: `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+          };
+        }
+      }
+      
+      // 月份格式：2026-06、2026/06
+      match = trimmed.match(/^(\d{4})[-/](\d{1,2})$/);
+      if (match) {
+        const year = parseInt(match[1]);
+        const month = parseInt(match[2]);
+        if (year >= 2000 && year <= 2100 && month >= 1 && month <= 12) {
+          return {
+            year,
+            month: month - 1,
+            fullDate: `${year}-${String(month).padStart(2, '0')}`
+          };
+        }
+      }
+      
+      // 仅月份：06（当前年份）
+      match = trimmed.match(/^(\d{1,2})$/);
+      if (match) {
+        const month = parseInt(match[1]);
+        if (month >= 1 && month <= 12) {
+          return {
+            year: currentYear,
+            month: month - 1,
+            fullDate: `${currentYear}-${String(month).padStart(2, '0')}`
+          };
+        }
+      }
+      
+      // 部分格式：6-18、6/18（当前年）
+      match = trimmed.match(/^(\d{1,2})[-/](\d{1,2})$/);
+      if (match) {
+        const month = parseInt(match[1]);
+        const day = parseInt(match[2]);
+        if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+          const year = currentYear;
+          return {
+            year,
+            month: month - 1,
+            fullDate: `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+          };
+        }
+      }
+      
+      return null;
+    }
+    
+    // 输入框实时筛选
+    document.getElementById('filterDate').addEventListener('input', function(e) {
+      const input = e.target.value;
+      const parsed = parseDateInput(input);
+      
+      if (parsed) {
+        // 解析成功，更新日历显示并筛选
+        calendarYear = parsed.year;
+        calendarMonth = parsed.month;
+        selectedDate = parsed.fullDate;
+        
+        // 根据输入格式决定显示模式
+        if (input.includes('-') || input.includes('/')) {
+          const parts = input.split(/[-/]/);
+          if (parts.length === 2) {
+            // 月份格式，切换到整月模式
+            setCalendarMode('month');
+          } else if (parts.length === 3) {
+            // 完整日期，切换到单日模式
+            setCalendarMode('single');
+          }
+        }
+        
+        if (document.getElementById('calendarDropdown').classList.contains('hidden') === false) {
+          renderCalendar();
+        }
+        filterGames();
+      } else if (input === '') {
+        // 清空输入
+        selectedDate = null;
+        filterGames();
+      } else {
+        // 输入无效，清空
+        e.target.value = '';
+        selectedDate = null;
+        filterGames();
+      }
+      updateClearButton();
+    });
+    
+    // 监听输入框blur事件，如果无效则清空
+    document.getElementById('filterDate').addEventListener('blur', function(e) {
+      const input = e.target.value;
+      const parsed = parseDateInput(input);
+      if (input !== '' && !parsed) {
+        e.target.value = '';
+        selectedDate = null;
+        updateClearButton();
+        filterGames();
+      }
+    });
+  </script>
+</body>
+</html>
