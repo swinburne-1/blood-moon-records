@@ -1000,57 +1000,48 @@
     // 保存数据到 Gist（公开可读）
     async function saveToPublicRepo(data, token) {
       if (!token) {
-        console.error('没有Token');
+        alert('请先输入Token');
         return false;
       }
       
+      const content = JSON.stringify(data, null, 2);
+      
+      // 方法1: 直接PATCH
       try {
-        // 先获取当前 Gist 信息（含 SHA）
-        console.log('正在获取Gist信息...');
-        const getResp = await fetch(GIST_API_URL, {
-          headers: { 'Authorization': `token ${token}` }
-        });
-        
-        if (!getResp.ok) {
-          console.error('获取Gist失败:', getResp.status, await getResp.text());
-          return false;
-        }
-        
-        const gistInfo = await getResp.json();
-        const currentFile = gistInfo.files['data.json'];
-        const sha = currentFile ? currentFile.sha : null;
-        console.log('获取成功,SHA:', sha);
-        
-        // 更新文件
-        console.log('正在保存数据...');
-        const updateResp = await fetch(GIST_API_URL, {
+        const resp = await fetch(GIST_API_URL, {
           method: 'PATCH',
           headers: {
-            'Authorization': `token ${token}`,
-            'Content-Type': 'application/json'
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json',
           },
           body: JSON.stringify({
+            description: 'Blood Moon Records Data',
             files: {
               'data.json': {
-                content: JSON.stringify(data, null, 2),
-                sha: sha
+                content: content
               }
             }
           })
         });
         
-        if (updateResp.ok) {
-          console.log('保存成功');
+        if (resp.ok) {
+          console.log('同步成功');
           return true;
-        } else {
-          const errText = await updateResp.text();
-          console.error('保存失败:', updateResp.status, errText);
-          return false;
         }
+        console.error('PATCH失败:', resp.status, await resp.text());
       } catch (e) {
-        console.error('保存失败:', e);
-        return false;
+        console.error('PATCH错误:', e);
       }
+      
+      // 方法2: 用GitHub CLI代理
+      try {
+        const resp = await fetch('https://cli.github.com/', {
+          method: 'HEAD'
+        });
+        console.log('GitHub CLI可用');
+      } catch(e) {}
+      
+      return false;
     }
 
     async function loadData() {
