@@ -916,7 +916,7 @@
     const GIST_ID = '5b4e40ba6cc295f6f6bc3249dd48b68e';
     const GIST_API_URL = `https://api.github.com/gists/${GIST_ID}`;
     // 公开读取URL（任何人可读，不需要Token）
-    const PUBLIC_DATA_URL = 'https://raw.githubusercontent.com/swinburne-1/blood-moon-records/main/data.json';
+    const PUBLIC_DATA_URL = 'https://gist.githubusercontent.com/swinburne-1/5b4e40ba6cc295f6f6bc3249dd48b68e/raw/data.json';
     
     const DEFAULT_DATA = {
       scripts: [],
@@ -997,44 +997,51 @@
       }
     }
     
-    // 保存数据到 GitHub 仓库的 data.json（公开可读）
+    // 保存数据到 Gist（公开可读）
     async function saveToPublicRepo(data, token) {
       if (!token) return false;
       
       try {
-        // 先获取文件的 SHA
-        const getResp = await fetch('https://api.github.com/repos/swinburne-1/blood-moon-records/contents/data.json', {
+        // 先获取当前 Gist 信息（含 SHA）
+        const getResp = await fetch(GIST_API_URL, {
           headers: { 'Authorization': `token ${token}` }
         });
-        let sha = null;
-        if (getResp.ok) {
-          const info = await getResp.json();
-          sha = info.sha;
+        
+        if (!getResp.ok) {
+          console.error('获取 Gist 信息失败:', getResp.status);
+          return false;
         }
         
+        const gistInfo = await getResp.json();
+        const currentFile = gistInfo.files['data.json'];
+        const sha = currentFile ? currentFile.sha : null;
+        
         // 更新文件
-        const updateResp = await fetch('https://api.github.com/repos/swinburne-1/blood-moon-records/contents/data.json', {
-          method: 'PUT',
+        const updateResp = await fetch(GIST_API_URL, {
+          method: 'PATCH',
           headers: {
             'Authorization': `token ${token}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            message: 'Update data.json',
-            content: btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2)))),
-            sha: sha
+            files: {
+              'data.json': {
+                content: JSON.stringify(data, null, 2),
+                sha: sha
+              }
+            }
           })
         });
         
         if (updateResp.ok) {
-          console.log('保存到公开仓库成功');
+          console.log('保存到 Gist 成功');
           return true;
         } else {
-          console.error('保存到公开仓库失败:', updateResp.status);
+          console.error('保存到 Gist 失败:', updateResp.status);
           return false;
         }
       } catch (e) {
-        console.error('保存到公开仓库失败:', e);
+        console.error('保存到 Gist 失败:', e);
         return false;
       }
     }
